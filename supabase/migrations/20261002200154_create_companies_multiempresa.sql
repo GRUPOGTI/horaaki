@@ -2,7 +2,7 @@
 # Multi-empresa: tabela companies + empresa_id em services e bookings
 
 1. Nova tabela
-- `companies`: armazena os dados de cada empresa cadastrada no Agendaki
+- `companies`: armazena os dados de cada empresa cadastrada no Horaki
   - id (uuid, PK)
   - user_id (uuid, FK auth.users, dono da empresa)
   - name (nome da empresa)

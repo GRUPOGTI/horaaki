@@ -38,7 +38,7 @@ const features = [
 ]
 
 const steps = [
-  { num: '01', title: 'Crie sua conta', desc: 'Cadastre sua empresa no Agendaki em poucos minutos.' },
+  { num: '01', title: 'Crie sua conta', desc: 'Cadastre sua empresa no Horaki em poucos minutos.' },
   { num: '02', title: 'Configure serviços', desc: 'Adicione seus serviços, horários e profissionais.' },
   { num: '03', title: 'Compartilhe seu link', desc: 'Divulgue seu link exclusivo para seus clientes.' },
   { num: '04', title: 'Receba agendamentos', desc: 'Acompanhe tudo pelo painel em tempo real.' },
@@ -50,8 +50,8 @@ const steps = [
     <header class="landing-header">
       <div class="container header-inner">
         <div class="brand">
-          <span class="brand-mark">A</span>
-          <span class="brand-name">Agendaki</span>
+          <span class="brand-mark">H</span>
+          <span class="brand-name">Horaki</span>
         </div>
         <nav class="header-nav">
           <a href="#recursos" @click.prevent="scrollTo('#recursos')">Recursos</a>
@@ -73,7 +73,7 @@ const steps = [
           do seu negócio
         </h1>
         <p class="hero-desc">
-          Com o Agendaki, sua empresa tem uma página de agendamento online
+          Com o Horaki, sua empresa tem uma página de agendamento online
           com link próprio. Seus clientes marcam horário sozinhos e você
           controla tudo pelo painel.
         </p>
@@ -127,10 +127,10 @@ const steps = [
     <footer class="landing-footer">
       <div class="container">
         <div class="footer-brand">
-          <span class="brand-mark">A</span>
-          <span class="brand-name">Agendaki</span>
+          <span class="brand-mark">H</span>
+          <span class="brand-name">Horaki</span>
         </div>
-        <p>&copy; {{ new Date().getFullYear() }} Agendaki. Plataforma de agendamento online.</p>
+        <p>&copy; {{ new Date().getFullYear() }} Horaki. Plataforma de agendamento online.</p>
       </div>
     </footer>
   </div>

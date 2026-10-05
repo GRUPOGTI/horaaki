@@ -46,8 +46,8 @@ async function handleSignOut() {
     <aside class="sidebar" :class="{ open: sidebarOpen }">
       <div class="sidebar-header">
         <router-link to="/painel" class="sidebar-logo">
-          <span class="logo-mark">A</span>
-          <span class="logo-name">Agendaki</span>
+          <span class="logo-mark">H</span>
+          <span class="logo-name">Horaki</span>
         </router-link>
       </div>
 

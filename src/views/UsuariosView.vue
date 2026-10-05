@@ -95,7 +95,7 @@ onMounted(async () => {
 
       <div v-if="showInviteForm" class="invite-panel">
         <h3 class="invite-title">Convidar novo administrador</h3>
-        <p class="invite-desc">O usuário convidado deve criar uma conta no Agendaki usando o mesmo e-mail para ter acesso à empresa.</p>
+        <p class="invite-desc">O usuário convidado deve criar uma conta no Horaki usando o mesmo e-mail para ter acesso à empresa.</p>
         <form @submit.prevent="handleInvite" class="invite-form">
           <div class="invite-row">
             <input v-model="inviteForm.email" type="email" placeholder="e-mail do novo administrador" required />

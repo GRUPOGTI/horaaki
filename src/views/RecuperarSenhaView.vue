@@ -34,8 +34,8 @@ async function handleSubmit() {
   <div class="auth-page">
     <div class="auth-card">
       <a href="/" class="auth-logo">
-        <span class="logo-mark">A</span>
-        <span class="logo-name">Agendaki</span>
+        <span class="logo-mark">H</span>
+        <span class="logo-name">Horaki</span>
       </a>
 
       <h1 class="auth-title">Recuperar Senha</h1>

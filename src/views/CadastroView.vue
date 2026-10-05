@@ -71,12 +71,12 @@ async function handleSubmit() {
   <div class="auth-page">
     <div class="auth-card">
       <a href="/" class="auth-logo">
-        <span class="logo-mark">A</span>
-        <span class="logo-name">Agendaki</span>
+        <span class="logo-mark">H</span>
+        <span class="logo-name">Horaki</span>
       </a>
 
       <h1 class="auth-title">Criar Conta</h1>
-      <p class="auth-subtitle">Cadastre sua empresa no Agendaki</p>
+      <p class="auth-subtitle">Cadastre sua empresa no Horaki</p>
 
       <form @submit.prevent="handleSubmit" class="auth-form">
         <div class="form-group">

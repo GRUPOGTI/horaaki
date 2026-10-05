@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Agendaki',
-        short_name: 'Agendaki',
-        description: 'Agendaki - Plataforma de agendamento online',
+        name: 'Horaki',
+        short_name: 'Horaki',
+        description: 'Horaki - Plataforma de agendamento online',
         theme_color: '#b8860b',
         background_color: '#0a0a0a',
         display: 'standalone',
