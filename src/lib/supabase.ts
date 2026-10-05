@@ -40,6 +40,15 @@ export interface Service {
   created_at: string
 }
 
+export interface CompanyMember {
+  id: string
+  company_id: string
+  user_id: string | null
+  role: string
+  invited_email: string | null
+  created_at: string
+}
+
 export interface Booking {
   id: string
   client_name: string

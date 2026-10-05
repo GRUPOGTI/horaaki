@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, RouterLink, RouterView } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useBookings } from '../composables/useBookings'
+import { useCompany } from '../composables/useCompany'
 
 const router = useRouter()
 const { user, signOut } = useAuth()
 const { bookings, newBookingCount, clearNewBookingCount } = useBookings()
+const { company, loadCompanyByUser } = useCompany()
 const sidebarOpen = ref(false)
 
 const pendingCount = computed(() => bookings.value.filter((b) => b.status === 'pending').length)
@@ -23,8 +25,13 @@ const navItems = [
   { name: 'agenda', label: 'Agenda', icon: 'M8 2v4M16 2v4M3 10h18M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z' },
   { name: 'clientes', label: 'Clientes', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
   { name: 'servicos-admin', label: 'Serviços', icon: 'M6 4l6 8 6-8M6 20l6-8 6 8' },
+  { name: 'usuarios', label: 'Usuários', icon: 'M17 20h5v-2a4 4 0 0 0-3-3.87M9 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
   { name: 'configuracoes', label: 'Configurações', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' },
 ]
+
+onMounted(async () => {
+  await loadCompanyByUser()
+})
 
 async function handleSignOut() {
   await signOut()
@@ -81,7 +88,7 @@ async function handleSignOut() {
         <button class="menu-btn" @click="sidebarOpen = !sidebarOpen" aria-label="Menu">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
         </button>
-        <h2 class="topbar-title">Painel Administrativo</h2>
+        <h2 class="topbar-title">{{ company?.name || 'Painel Administrativo' }}</h2>
         <div v-if="newBookingCount > 0" class="new-booking-alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>
           <span>{{ newBookingCount }} novo(s) agendamento(s)</span>

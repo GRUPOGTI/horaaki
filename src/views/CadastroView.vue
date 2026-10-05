@@ -2,12 +2,14 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { useCompany } from '../composables/useCompany'
 
 const router = useRouter()
-const { signIn, signUp } = useAuth()
+const { signUp, signIn } = useAuth()
+const { createCompany } = useCompany()
 
 const form = reactive({
-  name: '',
+  companyName: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -16,10 +18,19 @@ const form = reactive({
 const errorMsg = ref('')
 const loading = ref(false)
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
 async function handleSubmit() {
   errorMsg.value = ''
 
-  if (!form.name.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
+  if (!form.companyName.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
     errorMsg.value = 'Preencha todos os campos.'
     return
   }
@@ -36,8 +47,17 @@ async function handleSubmit() {
 
   loading.value = true
   try {
-    await signUp(form.email.trim(), form.password)
+    const signUpResult = await signUp(form.email.trim(), form.password)
     await signIn(form.email.trim(), form.password)
+
+    if (signUpResult) {
+      await createCompany({
+        name: form.companyName.trim(),
+        slug: slugify(form.companyName),
+        email: form.email.trim(),
+      })
+    }
+
     router.push('/painel')
   } catch (err: any) {
     errorMsg.value = err.message || 'Erro ao criar conta. Tente novamente.'
@@ -60,13 +80,13 @@ async function handleSubmit() {
 
       <form @submit.prevent="handleSubmit" class="auth-form">
         <div class="form-group">
-          <label for="name">Nome</label>
+          <label for="companyName">Nome da empresa</label>
           <input
-            id="name"
-            v-model="form.name"
+            id="companyName"
+            v-model="form.companyName"
             type="text"
-            placeholder="Seu nome completo"
-            autocomplete="name"
+            placeholder="Ex: Salão Nadja Gomes"
+            autocomplete="organization"
             required
           />
         </div>
