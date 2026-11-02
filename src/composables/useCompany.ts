@@ -171,6 +171,7 @@ export function useCompany() {
         instagram_url: payload.instagram_url || null,
         facebook_url: payload.facebook_url || null,
         tiktok_url: payload.tiktok_url || null,
+        site_config: payload.site_config ?? null,
       })
       .select('*')
       .maybeSingle()
@@ -211,6 +212,7 @@ export function useCompany() {
         instagram_url: payload.instagram_url,
         facebook_url: payload.facebook_url,
         tiktok_url: payload.tiktok_url,
+        site_config: payload.site_config ?? null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

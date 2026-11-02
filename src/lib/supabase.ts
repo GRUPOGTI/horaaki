@@ -22,8 +22,35 @@ export interface Company {
   instagram_url: string | null
   facebook_url: string | null
   tiktok_url: string | null
+  site_config: SiteConfig | null
   created_at: string
   updated_at: string
+}
+
+export interface SiteConfig {
+  hero_eyebrow?: string | null
+  hero_title?: string | null
+  hero_description?: string | null
+  hero_button_primary?: string | null
+  hero_button_secondary?: string | null
+  hero_stats?: readonly { num: string; label: string }[]
+  services_title?: string | null
+  services_subtitle?: string | null
+  gallery_title?: string | null
+  gallery_subtitle?: string | null
+  gallery_images?: readonly string[]
+  about_eyebrow?: string | null
+  about_title?: string | null
+  about_text_1?: string | null
+  about_text_2?: string | null
+  about_badge_num?: string | null
+  about_badge_label?: string | null
+  about_image?: string | null
+  about_features?: readonly { title: string; desc: string }[]
+  booking_title?: string | null
+  booking_subtitle?: string | null
+  contact_title?: string | null
+  contact_subtitle?: string | null
 }
 
 export interface Service {
@@ -61,6 +88,17 @@ export interface Professional {
   created_at: string
 }
 
+export interface Client {
+  id: string
+  empresa_id: string
+  name: string
+  phone: string
+  cpf: string | null
+  email: string | null
+  notes: string | null
+  created_at: string
+}
+
 export interface Booking {
   id: string
   client_name: string
@@ -72,5 +110,7 @@ export interface Booking {
   notes: string | null
   status: string
   empresa_id: string | null
+  client_id: string | null
+  professional_id: string | null
   created_at: string
 }

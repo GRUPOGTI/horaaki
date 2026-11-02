@@ -1,16 +1,26 @@
 <script setup lang="ts">
-import { ref, onUnmounted, onMounted, nextTick } from 'vue'
+import { ref, onUnmounted, onMounted, nextTick, computed } from 'vue'
+import type { SiteConfig } from '../lib/supabase'
 
-const galleryImages = [
-  { url: 'https://images.pexels.com/photos/7195812/pexels-photo-7195812.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Interior do salão com produtos e recepção' },
-  { url: 'https://images.pexels.com/photos/7750108/pexels-photo-7750108.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Salão com cadeiras e espelhos iluminados' },
-  { url: 'https://images.pexels.com/photos/8834072/pexels-photo-8834072.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Cabelereista cortando cabelo' },
-  { url: 'https://images.pexels.com/photos/7195811/pexels-photo-7195811.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Cadeiras de lavagem modernas' },
-  { url: 'https://images.pexels.com/photos/7750124/pexels-photo-7750124.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Salão elegante com iluminação moderna' },
-  { url: 'https://images.pexels.com/photos/3993445/pexels-photo-3993445.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Estilista cortando cabelo na água' },
-  { url: 'https://images.pexels.com/photos/29877719/pexels-photo-29877719.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Manicure em processo' },
-  { url: 'https://images.pexels.com/photos/7750109/pexels-photo-7750109.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Espaço chic do salão' },
+const props = defineProps<{ config: SiteConfig }>()
+
+const defaultImages = [
+  'https://images.pexels.com/photos/7195812/pexels-photo-7195812.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/7750108/pexels-photo-7750108.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/8834072/pexels-photo-8834072.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/7195811/pexels-photo-7195811.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/7750124/pexels-photo-7750124.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/3993445/pexels-photo-3993445.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/29877719/pexels-photo-29877719.jpeg?auto=compress&cs=tinysrgb&w=800',
+  'https://images.pexels.com/photos/7750109/pexels-photo-7750109.jpeg?auto=compress&cs=tinysrgb&w=800',
 ]
+
+const galleryImages = computed(() =>
+  (props.config.gallery_images?.length ? props.config.gallery_images : defaultImages).map((url, i) => ({
+    url,
+    alt: `Imagem ${i + 1} da galeria`,
+  }))
+)
 
 const lightboxIndex = ref<number | null>(null)
 const lightboxRef = ref<HTMLElement | null>(null)
@@ -34,12 +44,12 @@ function closeLightbox() {
 
 function nextImage() {
   if (lightboxIndex.value === null) return
-  lightboxIndex.value = (lightboxIndex.value + 1) % galleryImages.length
+  lightboxIndex.value = (lightboxIndex.value + 1) % galleryImages.value.length
 }
 
 function prevImage() {
   if (lightboxIndex.value === null) return
-  lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.length) % galleryImages.length
+  lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.value.length) % galleryImages.value.length
 }
 
 function trapFocus(e: KeyboardEvent) {
@@ -76,10 +86,9 @@ onUnmounted(() => {
 <template>
   <section id="galeria" class="section">
     <div class="container">
-      <h2 class="section-title">Nossa <span class="gold-text">Galeria</span></h2>
+      <h2 class="section-title">{{ (config.gallery_title ?? 'Nossa Galeria').split(' ').slice(0, -1).join(' ') }} <span class="gold-text">{{ (config.gallery_title ?? 'Nossa Galeria').split(' ').slice(-1)[0] }}</span></h2>
       <p class="section-subtitle">
-        Conheça nosso espaço e os momentos de transformação que criamos
-        para nossas clientes.
+        {{ config.gallery_subtitle ?? 'Conheça nosso espaço e os momentos de transformação que criamos para nossas clientes.' }}
       </p>
 
       <div class="gallery-grid">

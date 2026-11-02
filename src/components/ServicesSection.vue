@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { supabase, type Service } from '../lib/supabase'
+import { supabase, type Service, type SiteConfig } from '../lib/supabase'
 
-const props = defineProps<{ empresaId?: string | null }>()
+const props = defineProps<{ empresaId?: string | null; config?: SiteConfig }>()
 
 const services = ref<Service[]>([])
 const loading = ref(true)
@@ -79,10 +79,9 @@ watch(() => props.empresaId, loadServices)
 <template>
   <section id="servicos" class="section">
     <div class="container">
-      <h2 class="section-title">Nossos <span class="gold-text">Serviços</span></h2>
+      <h2 class="section-title">{{ (props.config?.services_title ?? 'Nossos Serviços').split(' ').slice(0, -1).join(' ') }} <span class="gold-text">{{ (props.config?.services_title ?? 'Nossos Serviços').split(' ').slice(-1)[0] }}</span></h2>
       <p class="section-subtitle">
-        Oferecemos uma ampla gama de serviços de beleza com profissionais
-        experientes e produtos de alta qualidade.
+        {{ props.config?.services_subtitle ?? 'Oferecemos uma ampla gama de serviços de beleza com profissionais experientes e produtos de alta qualidade.' }}
       </p>
 
       <div v-if="loading" class="loading-grid" aria-live="polite" aria-busy="true">

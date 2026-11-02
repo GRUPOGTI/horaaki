@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive, computed, watch } from 'vue'
-import { supabase, type Service } from '../lib/supabase'
+import { supabase, type Service, type SiteConfig } from '../lib/supabase'
 
-const props = defineProps<{ empresaId?: string | null }>()
+const props = defineProps<{ empresaId?: string | null; config?: SiteConfig }>()
 
 const services = ref<Service[]>([])
 const loading = ref(false)
@@ -129,10 +129,9 @@ watch(() => props.empresaId, loadServices)
 <template>
   <section id="agendar" class="section booking-section">
     <div class="container">
-      <h2 class="section-title">Agende seu <span class="gold-text">Horário</span></h2>
+      <h2 class="section-title">{{ (props.config?.booking_title ?? 'Agende seu Horário').split(' ').slice(0, -1).join(' ') }} <span class="gold-text">{{ (props.config?.booking_title ?? 'Agende seu Horário').split(' ').slice(-1)[0] }}</span></h2>
       <p class="section-subtitle">
-        Preencha o formulário abaixo e entraremos em contato para confirmar
-        seu agendamento.
+        {{ props.config?.booking_subtitle ?? 'Preencha o formulário abaixo e entraremos em contato para confirmar seu agendamento.' }}
       </p>
 
       <div class="booking-card">

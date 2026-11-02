@@ -1,18 +1,39 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useBookings } from '../composables/useBookings'
-import { supabase, type Service } from '../lib/supabase'
+import { useCompany } from '../composables/useCompany'
+import { supabase, type Service, type Client } from '../lib/supabase'
 import { formatDate, formatPrice, statusLabels, statusColors } from '../lib/format'
 
 const { bookings } = useBookings()
+const { company } = useCompany()
 
 const services = ref<Service[]>([])
+const clients = ref<Client[]>([])
 const searchQuery = ref('')
-const selectedClient = ref<ClientSummary | null>(null)
+const selectedClient = ref<ClientWithStats | null>(null)
+const loading = ref(true)
+const showAddModal = ref(false)
+const addLoading = ref(false)
+const addError = ref('')
 
-interface ClientSummary {
-  name: string
-  phone: string
+const addForm = ref({
+  name: '',
+  phone: '',
+  cpf: '',
+  email: '',
+  notes: '',
+})
+
+interface BookingRecord {
+  id: string
+  service_name: string
+  booking_date: string
+  booking_time: string
+  status: string
+}
+
+interface ClientWithStats extends Client {
   totalBookings: number
   pendingCount: number
   confirmedCount: number
@@ -20,76 +41,122 @@ interface ClientSummary {
   cancelledCount: number
   lastVisit: string
   totalSpent: number
-  bookings: Array<{
-    id: string
-    service_name: string
-    booking_date: string
-    booking_time: string
-    status: string
-  }>
+  bookings: BookingRecord[]
 }
 
-const clients = computed<ClientSummary[]>(() => {
-  const map = new Map<string, ClientSummary>()
+function buildStats(c: Client): ClientWithStats {
+  const clientBookings = bookings.value.filter(
+    (b) => b.client_id === c.id || b.client_phone === c.phone
+  )
 
-  for (const b of bookings.value) {
-    const key = b.client_phone
-    if (!map.has(key)) {
-      map.set(key, {
-        name: b.client_name,
-        phone: b.client_phone,
-        totalBookings: 0,
-        pendingCount: 0,
-        confirmedCount: 0,
-        completedCount: 0,
-        cancelledCount: 0,
-        lastVisit: '',
-        totalSpent: 0,
-        bookings: [],
-      })
-    }
-
-    const client = map.get(key)!
-    client.totalBookings++
-    client.bookings.push({
+  const stats: ClientWithStats = {
+    ...c,
+    totalBookings: clientBookings.length,
+    pendingCount: 0,
+    confirmedCount: 0,
+    completedCount: 0,
+    cancelledCount: 0,
+    lastVisit: '',
+    totalSpent: 0,
+    bookings: clientBookings.map((b) => ({
       id: b.id,
       service_name: b.service_name,
       booking_date: b.booking_date,
       booking_time: b.booking_time,
       status: b.status,
-    })
+    })),
+  }
 
-    if (b.status === 'pending') client.pendingCount++
-    if (b.status === 'confirmed') client.confirmedCount++
+  for (const b of clientBookings) {
+    if (b.status === 'pending') stats.pendingCount++
+    if (b.status === 'confirmed') stats.confirmedCount++
     if (b.status === 'completed') {
-      client.completedCount++
+      stats.completedCount++
       const svc = services.value.find((s) => s.id === b.service_id)
-      if (svc) client.totalSpent += svc.price
+      if (svc) stats.totalSpent += svc.price
     }
-    if (b.status === 'cancelled') client.cancelledCount++
-
-    if (!client.lastVisit || b.booking_date > client.lastVisit) {
-      client.lastVisit = b.booking_date
+    if (b.status === 'cancelled') stats.cancelledCount++
+    if (!stats.lastVisit || b.booking_date > stats.lastVisit) {
+      stats.lastVisit = b.booking_date
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => b.totalBookings - a.totalBookings)
-})
+  return stats
+}
+
+const clientsWithStats = computed<ClientWithStats[]>(() =>
+  clients.value.map(buildStats).sort((a, b) => b.totalBookings - a.totalBookings)
+)
 
 const filteredClients = computed(() => {
-  if (!searchQuery.value.trim()) return clients.value
+  if (!searchQuery.value.trim()) return clientsWithStats.value
   const q = searchQuery.value.toLowerCase().trim()
-  return clients.value.filter(
-    (c) => c.name.toLowerCase().includes(q) || c.phone.includes(q)
+  return clientsWithStats.value.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.phone.includes(q) ||
+      (c.cpf ?? '').includes(q)
   )
 })
 
-function openClient(client: ClientSummary) {
+function openClient(client: ClientWithStats) {
   selectedClient.value = client
 }
 
 function closeClient() {
   selectedClient.value = null
+}
+
+function openAddModal() {
+  addForm.value = { name: '', phone: '', cpf: '', email: '', notes: '' }
+  addError.value = ''
+  showAddModal.value = true
+}
+
+function closeAddModal() {
+  showAddModal.value = false
+}
+
+async function handleAddClient() {
+  addError.value = ''
+  if (!addForm.value.name.trim() || !addForm.value.phone.trim()) {
+    addError.value = 'Nome e telefone são obrigatórios.'
+    return
+  }
+
+  const companyId = company.value?.id
+  if (!companyId) {
+    addError.value = 'Empresa não carregada.'
+    return
+  }
+
+  addLoading.value = true
+  try {
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        empresa_id: companyId,
+        name: addForm.value.name.trim(),
+        phone: addForm.value.phone.trim(),
+        cpf: addForm.value.cpf.trim() || null,
+        email: addForm.value.email.trim() || null,
+        notes: addForm.value.notes.trim() || null,
+      })
+      .select('*')
+      .maybeSingle()
+
+    if (error) throw error
+    if (data) {
+      clients.value = [...clients.value, data as Client]
+      showAddModal.value = false
+    }
+  } catch (err: any) {
+    addError.value = err.message?.includes('unique')
+      ? 'Já existe um cliente com este telefone ou CPF.'
+      : err.message || 'Erro ao cadastrar cliente.'
+  } finally {
+    addLoading.value = false
+  }
 }
 
 function getStatusLabel(status: string): string {
@@ -100,32 +167,50 @@ function getStatusColor(status: string): string {
   return statusColors[status] || 'warning'
 }
 
-async function loadServices() {
-  const { data } = await supabase.from('services').select('*')
-  if (data) services.value = data
+async function loadData() {
+  const companyId = company.value?.id
+  if (!companyId) return
+
+  const [servicesRes, clientsRes] = await Promise.all([
+    supabase.from('services').select('*').eq('empresa_id', companyId),
+    supabase.from('clients').select('*').eq('empresa_id', companyId).order('name', { ascending: true }),
+  ])
+
+  if (servicesRes.data) services.value = servicesRes.data
+  if (clientsRes.data) clients.value = clientsRes.data as Client[]
+  loading.value = false
 }
-loadServices()
+
+onMounted(loadData)
 </script>
 
 <template>
   <div class="page">
     <div class="page-header">
       <h1 class="page-title">Clientes</h1>
-      <p class="page-subtitle">{{ clients.length }} cliente(s) cadastrado(s) através de agendamentos</p>
+      <p class="page-subtitle">{{ clients.length }} cliente(s) cadastrado(s)</p>
     </div>
 
     <div class="filter-bar">
-      <input v-model="searchQuery" type="text" placeholder="Buscar por nome ou telefone..." class="search-input" />
+      <input v-model="searchQuery" type="text" placeholder="Buscar por nome, telefone ou CPF..." class="search-input" />
+      <button class="btn btn-primary btn-add-client" @click="openAddModal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+        Novo Cliente
+      </button>
     </div>
 
-    <div v-if="filteredClients.length === 0" class="empty-state">
+    <div v-if="loading" class="empty-state">
+      <p>Carregando...</p>
+    </div>
+
+    <div v-else-if="filteredClients.length === 0" class="empty-state">
       <p>Nenhum cliente encontrado.</p>
     </div>
 
     <div v-else class="clients-grid">
       <div
         v-for="client in filteredClients"
-        :key="client.phone"
+        :key="client.id"
         class="client-card"
         @click="openClient(client)"
       >
@@ -195,6 +280,55 @@ loadServices()
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Add client modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showAddModal" class="modal-overlay" @click="closeAddModal">
+          <div class="modal" role="dialog" aria-modal="true" aria-label="Novo cliente" @click.stop>
+            <div class="modal-header">
+              <h3>Novo Cliente</h3>
+              <button class="modal-close" @click="closeAddModal" aria-label="Fechar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <p v-if="addError" class="error-banner" role="alert">{{ addError }}</p>
+
+            <form class="add-form" @submit.prevent="handleAddClient">
+              <div class="form-group">
+                <label for="client-name">Nome *</label>
+                <input id="client-name" v-model="addForm.name" type="text" placeholder="Nome do cliente" required />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="client-phone">Telefone *</label>
+                  <input id="client-phone" v-model="addForm.phone" type="tel" placeholder="(00) 00000-0000" required />
+                </div>
+                <div class="form-group">
+                  <label for="client-cpf">CPF</label>
+                  <input id="client-cpf" v-model="addForm.cpf" type="text" placeholder="000.000.000-00" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="client-email">E-mail</label>
+                <input id="client-email" v-model="addForm.email" type="email" placeholder="cliente@email.com" />
+              </div>
+              <div class="form-group">
+                <label for="client-notes">Observações</label>
+                <textarea id="client-notes" v-model="addForm.notes" rows="2" placeholder="Opcional"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn btn-outline" @click="closeAddModal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="addLoading">
+                  {{ addLoading ? 'Salvando...' : 'Cadastrar' }}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </Transition>
@@ -498,6 +632,90 @@ loadServices()
   }
   .modal-stat-value {
     font-size: 1.1rem;
+  }
+}
+.filter-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.btn-add-client {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.btn-add-client svg {
+  width: 18px;
+  height: 18px;
+}
+
+.error-banner {
+  color: var(--color-error);
+  font-size: 0.9rem;
+  padding: 12px 16px;
+  background: rgba(248,113,113,0.1);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(248,113,113,0.2);
+  margin-bottom: 20px;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.add-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.add-form .form-group label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.add-form .form-group input,
+.add-form .form-group textarea {
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  transition: border-color var(--transition);
+}
+
+.add-form .form-group input:focus,
+.add-form .form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-gold);
+}
+
+.add-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.add-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .add-form .form-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

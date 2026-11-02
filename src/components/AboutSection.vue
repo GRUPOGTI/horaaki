@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Company } from '../lib/supabase'
+import type { Company, SiteConfig } from '../lib/supabase'
 
-const props = defineProps<{ company: Company | null }>()
+const props = defineProps<{ company: Company | null; config: SiteConfig }>()
 
 const defaultAboutImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=900'
-const aboutImg = computed(() => props.company?.banner_url || defaultAboutImg)
+const aboutImg = computed(() => props.config.about_image || props.company?.banner_url || defaultAboutImg)
 const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
 const aboutImgAlt = computed(() => `Interior do ${companyName.value}`)
 
-const features = [
-  { title: 'Profissionais Experientes', desc: 'Equipe com mais de 15 anos de experiência no mercado da beleza.' },
-  { title: 'Produtos de Qualidade', desc: 'Trabalhamos apenas com marcas premium e reconhecidas.' },
-  { title: 'Ambiente Acolhedor', desc: 'Um espaço pensado para o seu conforto e bem-estar.' },
-  { title: 'Atendimento Personalizado', desc: 'Cada cliente recebe um atendimento único e exclusivo.' },
-]
+const features = computed(() => props.config.about_features ?? [])
+const text1 = computed(() => props.config.about_text_1 ?? `O ${companyName.value} nasceu da paixão por realçar a beleza de cada cliente. Com anos de experiência, nossa equipe oferece serviços de alta qualidade em um ambiente acolhedor e sofisticado.`)
+const text2 = computed(() => props.config.about_text_2 ?? 'Acreditamos que cada pessoa é única, por isso oferecemos um atendimento personalizado, escutando seus desejos e necessidades para criar o visual perfeito para você.')
+const badgeNum = computed(() => props.config.about_badge_num ?? '15+')
+const badgeLabel = computed(() => props.config.about_badge_label ?? 'Anos de experiência')
 </script>
 
 <template>
@@ -23,23 +22,19 @@ const features = [
       <div class="about-image">
         <img :src="aboutImg" :alt="aboutImgAlt" />
         <div class="about-badge">
-          <span class="badge-num">15+</span>
-          <span class="badge-label">Anos de<br>experiência</span>
+          <span class="badge-num">{{ badgeNum }}</span>
+          <span class="badge-label" v-html="badgeLabel.replace(/\n/g, '<br>')"></span>
         </div>
       </div>
 
       <div class="about-content">
-        <p class="about-eyebrow">Sobre nós</p>
-        <h2 class="about-title">Beleza e <span class="gold-text">cuidado</span> em cada detalhe</h2>
+        <p class="about-eyebrow">{{ config.about_eyebrow ?? 'Sobre nós' }}</p>
+        <h2 class="about-title"><span class="gold-text">{{ (config.about_title ?? 'Beleza e cuidado em cada detalhe').split(' ').slice(0, -1).join(' ') }}</span> {{ (config.about_title ?? 'Beleza e cuidado em cada detalhe').split(' ').slice(-1)[0] }}</h2>
         <p class="about-text">
-            O {{ companyName }} nasceu da paixão por realçar a beleza de cada
-          cliente. Com anos de experiência, nossa equipe oferece serviços
-          de alta qualidade em um ambiente acolhedor e sofisticado.
+          {{ text1 }}
         </p>
         <p class="about-text">
-          Acreditamos que cada pessoa é única, por isso oferecemos um
-          atendimento personalizado, escutando seus desejos e
-          necessidades para criar o visual perfeito para você.
+          {{ text2 }}
         </p>
 
         <div class="features-grid">

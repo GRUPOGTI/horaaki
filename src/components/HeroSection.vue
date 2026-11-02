@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Company } from '../lib/supabase'
+import type { Company, SiteConfig } from '../lib/supabase'
 
-const props = defineProps<{ company: Company | null }>()
+const props = defineProps<{ company: Company | null; config: SiteConfig }>()
 
 const defaultHeroImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=1920'
 const heroImg = computed(() => props.company?.banner_url || defaultHeroImg)
 const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
-const companyDesc = computed(() => props.company?.description ?? 'Sua beleza é nossa arte. Oferecemos cortes, coloração, tratamentos e serviços de estética com profissionais experientes e produtos de alta qualidade.')
+const heroTitle = computed(() => props.config.hero_title ?? companyName.value)
+const heroDesc = computed(() => props.config.hero_description ?? 'Sua beleza é nossa arte. Oferecemos cortes, coloração, tratamentos e serviços de estética com profissionais experientes e produtos de alta qualidade.')
+const heroStats = computed(() => props.config.hero_stats ?? [])
 
 function scrollTo(href: string) {
   const el = document.querySelector(href)
@@ -21,35 +23,28 @@ function scrollTo(href: string) {
     <div class="hero-overlay"></div>
 
     <div class="container hero-content">
-      <p class="hero-eyebrow">Bem-vinda ao</p>
-      <h1 class="hero-title"><span class="gold-text">{{ companyName }}</span></h1>
+      <p class="hero-eyebrow">{{ config.hero_eyebrow ?? 'Bem-vinda ao' }}</p>
+      <h1 class="hero-title"><span class="gold-text">{{ heroTitle }}</span></h1>
       <p class="hero-desc">
-        {{ companyDesc }}
+        {{ heroDesc }}
       </p>
       <div class="hero-actions">
         <button class="btn btn-primary" @click="scrollTo('#agendar')">
-          Agendar Horário
+          {{ config.hero_button_primary ?? 'Agendar Horário' }}
         </button>
         <button class="btn btn-outline" @click="scrollTo('#servicos')">
-          Ver Serviços
+          {{ config.hero_button_secondary ?? 'Ver Serviços' }}
         </button>
       </div>
 
       <div class="hero-stats">
-        <div class="stat">
-          <span class="stat-num">15+</span>
-          <span class="stat-label">Anos de experiência</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-num">10+</span>
-          <span class="stat-label">Serviços</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-num">2k+</span>
-          <span class="stat-label">Clientes satisfeitas</span>
-        </div>
+        <template v-for="(stat, i) in heroStats" :key="i">
+          <div v-if="i > 0" class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-num">{{ stat.num }}</span>
+            <span class="stat-label">{{ stat.label }}</span>
+          </div>
+        </template>
       </div>
     </div>
 

@@ -1,12 +1,168 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useBookings } from '../composables/useBookings'
+import { useCompany } from '../composables/useCompany'
 import { formatDate, formatPrice, statusLabels, statusColors } from '../lib/format'
-import { supabase, type Service, type Booking } from '../lib/supabase'
+import { supabase, type Service, type Booking, type Professional, type Client } from '../lib/supabase'
 
 const { bookings, updateBookingStatus, deleteBooking } = useBookings()
+const { company } = useCompany()
 
 const services = ref<Service[]>([])
+const professionals = ref<Professional[]>([])
+const clients = ref<Client[]>([])
+const showCreateModal = ref(false)
+const createLoading = ref(false)
+const createError = ref('')
+
+const createForm = ref({
+  client_id: '' as string,
+  client_name: '',
+  client_phone: '',
+  service_id: '' as string,
+  professional_id: '' as string,
+  booking_date: '',
+  booking_time: '',
+  notes: '',
+  new_client_cpf: '',
+})
+
+const filteredClients = computed(() => {
+  if (!createForm.value.client_name.trim()) return []
+  const q = createForm.value.client_name.toLowerCase().trim()
+  return clients.value.filter(
+    (c) => c.name.toLowerCase().includes(q) || c.phone.includes(q)
+  ).slice(0, 10)
+})
+
+const timeSlots = [
+  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+  '11:00', '11:30', '13:00', '13:30', '14:00', '14:30',
+  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+  '18:00', '18:30',
+]
+
+const bookedSlots = computed(() => {
+  if (!createForm.value.booking_date) return new Set<string>()
+  return new Set(
+    bookings.value
+      .filter((b) => b.booking_date === createForm.value.booking_date && b.status !== 'cancelled')
+      .map((b) => b.booking_time)
+  )
+})
+
+const availableSlots = computed(() =>
+  timeSlots.filter((t) => !bookedSlots.value.has(t))
+)
+
+function selectExistingClient(c: Client) {
+  createForm.value.client_id = c.id
+  createForm.value.client_name = c.name
+  createForm.value.client_phone = c.phone
+  createForm.value.new_client_cpf = c.cpf || ''
+}
+
+function clearClientSelection() {
+  createForm.value.client_id = ''
+  createForm.value.new_client_cpf = ''
+}
+
+function openCreateModal() {
+  createForm.value = {
+    client_id: '',
+    client_name: '',
+    client_phone: '',
+    service_id: '',
+    professional_id: '',
+    booking_date: '',
+    booking_time: '',
+    notes: '',
+    new_client_cpf: '',
+  }
+  createError.value = ''
+  showCreateModal.value = true
+}
+
+function closeCreateModal() {
+  showCreateModal.value = false
+}
+
+async function handleCreateBooking() {
+  createError.value = ''
+  const f = createForm.value
+  if (!f.client_name.trim() || !f.client_phone.trim() || !f.service_id || !f.booking_date || !f.booking_time) {
+    createError.value = 'Preencha todos os campos obrigatórios.'
+    return
+  }
+
+  createLoading.value = true
+  try {
+    const companyId = company.value?.id
+    if (!companyId) throw new Error('Empresa não carregada.')
+
+    const service = services.value.find((s) => s.id === f.service_id)
+    if (!service) throw new Error('Serviço inválido.')
+
+    let clientId: string | null = f.client_id || null
+
+    // If no existing client selected, create one (or find by phone)
+    if (!clientId) {
+      const { data: existing, error: findErr } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('empresa_id', companyId)
+        .eq('phone', f.client_phone.trim())
+        .maybeSingle()
+
+      if (findErr) throw findErr
+
+      if (existing) {
+        clientId = existing.id
+      } else {
+        const { data: newClient, error: clientErr } = await supabase
+          .from('clients')
+          .insert({
+            empresa_id: companyId,
+            name: f.client_name.trim(),
+            phone: f.client_phone.trim(),
+            cpf: f.new_client_cpf.trim() || null,
+          })
+          .select('id')
+          .maybeSingle()
+
+        if (clientErr) throw clientErr
+        if (newClient) clientId = newClient.id
+      }
+    }
+
+    const insertPayload: Record<string, unknown> = {
+      client_name: f.client_name.trim(),
+      client_phone: f.client_phone.trim(),
+      service_id: f.service_id,
+      service_name: service.name,
+      booking_date: f.booking_date,
+      booking_time: f.booking_time,
+      notes: f.notes.trim() || null,
+      status: 'confirmed',
+      empresa_id: companyId,
+      client_id: clientId,
+      professional_id: f.professional_id || null,
+    }
+
+    const { error: bookingErr } = await supabase.from('bookings').insert(insertPayload)
+    if (bookingErr) throw bookingErr
+
+    // Reload clients list
+    await loadClients()
+    showSuccess('Agendamento criado com sucesso.')
+    showCreateModal.value = false
+  } catch (err: any) {
+    createError.value = err.message || 'Erro ao criar agendamento.'
+  } finally {
+    createLoading.value = false
+  }
+}
+
 const filterStatus = ref('all')
 const filterDate = ref('')
 const searchQuery = ref('')
@@ -110,10 +266,38 @@ function closeDayBookings() {
 }
 
 async function loadServices() {
-  const { data } = await supabase.from('services').select('*')
+  let query = supabase.from('services').select('*').eq('active', true)
+  if (company.value?.id) {
+    query = query.eq('empresa_id', company.value.id)
+  }
+  const { data } = await query
   if (data) services.value = data
 }
+
+async function loadProfessionals() {
+  if (!company.value?.id) return
+  const { data } = await supabase
+    .from('professionals')
+    .select('*')
+    .eq('empresa_id', company.value.id)
+    .eq('active', true)
+    .order('display_order', { ascending: true })
+  if (data) professionals.value = data
+}
+
+async function loadClients() {
+  if (!company.value?.id) return
+  const { data } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('empresa_id', company.value.id)
+    .order('name', { ascending: true })
+  if (data) clients.value = data
+}
+
 loadServices()
+loadProfessionals()
+loadClients()
 
 function getServicePrice(serviceId: string | null): string {
   if (!serviceId) return '-'
@@ -183,23 +367,29 @@ function getStatusColor(status: string): string {
         <h1 class="page-title">Agenda</h1>
         <p class="page-subtitle">Gerencie todos os agendamentos</p>
       </div>
-      <div class="view-toggle">
-        <button
-          class="toggle-btn"
-          :class="{ active: viewMode === 'list' }"
-          @click="viewMode = 'list'"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
-          Lista
+      <div class="header-actions">
+        <button class="btn btn-primary btn-new-booking" @click="openCreateModal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          Novo Agendamento
         </button>
-        <button
-          class="toggle-btn"
-          :class="{ active: viewMode === 'calendar' }"
-          @click="viewMode = 'calendar'"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
-          Calendário
-        </button>
+        <div class="view-toggle">
+          <button
+            class="toggle-btn"
+            :class="{ active: viewMode === 'list' }"
+            @click="viewMode = 'list'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
+            Lista
+          </button>
+          <button
+            class="toggle-btn"
+            :class="{ active: viewMode === 'calendar' }"
+            @click="viewMode = 'calendar'"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+            Calendário
+          </button>
+        </div>
       </div>
     </div>
 
@@ -390,6 +580,127 @@ function getStatusColor(status: string): string {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+    <!-- Create booking modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showCreateModal" class="modal-overlay" @click="closeCreateModal">
+          <div class="modal create-modal" role="dialog" aria-modal="true" aria-label="Novo agendamento" @click.stop>
+            <div class="modal-header">
+              <h3>Novo Agendamento</h3>
+              <button class="modal-close" @click="closeCreateModal" aria-label="Fechar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <p v-if="createError" class="error-banner" role="alert">{{ createError }}</p>
+
+            <form class="create-form" @submit.prevent="handleCreateBooking">
+              <div class="form-group">
+                <label for="new-client-name">Cliente *</label>
+                <input
+                  id="new-client-name"
+                  v-model="createForm.client_name"
+                  type="text"
+                  placeholder="Nome do cliente"
+                  required
+                  @input="clearClientSelection"
+                />
+                <div v-if="!createForm.client_id && filteredClients.length > 0" class="client-suggestions">
+                  <button
+                    v-for="c in filteredClients"
+                    :key="c.id"
+                    type="button"
+                    class="client-suggestion"
+                    @click="selectExistingClient(c)"
+                  >
+                    {{ c.name }} — {{ c.phone }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="new-client-phone">Telefone *</label>
+                  <input
+                    id="new-client-phone"
+                    v-model="createForm.client_phone"
+                    type="tel"
+                    placeholder="(00) 00000-0000"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="new-client-cpf">CPF</label>
+                  <input
+                    id="new-client-cpf"
+                    v-model="createForm.new_client_cpf"
+                    type="text"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="new-service">Serviço *</label>
+                <select id="new-service" v-model="createForm.service_id" required>
+                  <option value="" disabled>Selecione um serviço</option>
+                  <option v-for="s in services" :key="s.id" :value="s.id">
+                    {{ s.name }} — {{ formatPrice(s.price) }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group" v-if="professionals.length > 0">
+                <label for="new-professional">Profissional</label>
+                <select id="new-professional" v-model="createForm.professional_id">
+                  <option value="">Sem profissional específico</option>
+                  <option v-for="p in professionals" :key="p.id" :value="p.id">
+                    {{ p.name }} — {{ p.role }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="new-date">Data *</label>
+                  <input
+                    id="new-date"
+                    v-model="createForm.booking_date"
+                    type="date"
+                    :min="todayStr"
+                    required
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="new-time">Horário *</label>
+                  <select id="new-time" v-model="createForm.booking_time" required>
+                    <option value="" disabled>Selecione um horário</option>
+                    <option v-for="t in availableSlots" :key="t" :value="t">{{ t }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="new-notes">Observações</label>
+                <textarea
+                  id="new-notes"
+                  v-model="createForm.notes"
+                  rows="2"
+                  placeholder="Opcional"
+                ></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn btn-outline" @click="closeCreateModal">Cancelar</button>
+                <button type="submit" class="btn btn-primary" :disabled="createLoading">
+                  {{ createLoading ? 'Criando...' : 'Criar Agendamento' }}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </Transition>
@@ -960,6 +1271,111 @@ function getStatusColor(status: string): string {
   }
   .cal-more {
     display: none;
+  }
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-new-booking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+}
+
+.btn-new-booking svg {
+  width: 18px;
+  height: 18px;
+}
+
+.create-modal {
+  max-width: 560px;
+}
+
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-form .form-group label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.create-form .form-group input,
+.create-form .form-group select,
+.create-form .form-group textarea {
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  transition: border-color var(--transition);
+}
+
+.create-form .form-group input:focus,
+.create-form .form-group select:focus,
+.create-form .form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-gold);
+}
+
+.create-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.client-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.client-suggestion {
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  transition: background var(--transition);
+}
+
+.client-suggestion:hover {
+  background: var(--color-bg-card);
+  color: var(--color-text);
+}
+
+.create-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .create-form .form-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

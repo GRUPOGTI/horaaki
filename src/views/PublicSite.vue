@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCompany } from '../composables/useCompany'
+import { getSiteConfig, applyCompanyTheme } from '../lib/siteConfig'
 import SiteHeader from '../components/SiteHeader.vue'
 import HeroSection from '../components/HeroSection.vue'
 import ServicesSection from '../components/ServicesSection.vue'
@@ -32,6 +33,15 @@ watch(() => route.params.slug, load)
 
 const displayCompany = computed(() => company.value)
 const empresaId = computed(() => company.value?.id ?? null)
+const siteConfig = computed(() => getSiteConfig(company.value))
+
+watch(
+  displayCompany,
+  (c) => {
+    applyCompanyTheme(c?.primary_color ?? null)
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -51,12 +61,12 @@ const empresaId = computed(() => company.value?.id ?? null)
   <template v-else-if="displayCompany">
     <SiteHeader :company="displayCompany" />
     <main>
-      <HeroSection :company="displayCompany" />
-      <ServicesSection :empresa-id="empresaId" />
-      <GallerySection />
-      <AboutSection :company="displayCompany" />
-      <BookingSection :empresa-id="empresaId" />
-      <ContactSection :company="displayCompany" />
+      <HeroSection :company="displayCompany" :config="siteConfig" />
+      <ServicesSection :empresa-id="empresaId" :config="siteConfig" />
+      <GallerySection :config="siteConfig" />
+      <AboutSection :company="displayCompany" :config="siteConfig" />
+      <BookingSection :empresa-id="empresaId" :config="siteConfig" />
+      <ContactSection :company="displayCompany" :config="siteConfig" />
     </main>
     <SiteFooter :company="displayCompany" />
   </template>

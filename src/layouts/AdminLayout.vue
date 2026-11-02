@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, RouterLink, RouterView } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useBookings } from '../composables/useBookings'
@@ -7,7 +7,7 @@ import { useCompany } from '../composables/useCompany'
 
 const router = useRouter()
 const { user, signOut } = useAuth()
-const { bookings, newBookingCount, clearNewBookingCount } = useBookings()
+const { bookings, newBookingCount, clearNewBookingCount, loadBookings } = useBookings()
 const { company, loadCompanyByUser } = useCompany()
 const sidebarOpen = ref(false)
 
@@ -32,6 +32,16 @@ const navItems = [
 onMounted(async () => {
   await loadCompanyByUser()
 })
+
+watch(
+  () => company.value?.id,
+  (newId) => {
+    if (newId) {
+      loadBookings(newId)
+    }
+  },
+  { immediate: true }
+)
 
 async function handleSignOut() {
   await signOut()

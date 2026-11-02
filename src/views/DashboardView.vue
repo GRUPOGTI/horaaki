@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { supabase, type Service } from '../lib/supabase'
 import { useBookings } from '../composables/useBookings'
+import { useCompany } from '../composables/useCompany'
 import { formatPrice, formatDate, timeAgo, statusLabels, statusColors } from '../lib/format'
 
 const { bookings, clearNewBookingCount } = useBookings()
+const { company } = useCompany()
 
 const services = ref<Service[]>([])
 const loading = ref(true)
@@ -40,10 +42,16 @@ const todayBookings = computed(() => {
 })
 
 onMounted(async () => {
-  const { data } = await supabase
+  let query = supabase
     .from('services')
     .select('*')
     .order('display_order', { ascending: true })
+
+  if (company.value?.id) {
+    query = query.eq('empresa_id', company.value.id)
+  }
+
+  const { data } = await query
 
   if (data) services.value = data
   loading.value = false
