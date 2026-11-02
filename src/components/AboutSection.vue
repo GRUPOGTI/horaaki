@@ -1,5 +1,13 @@
 <script setup lang="ts">
-const aboutImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=900'
+import { computed } from 'vue'
+import type { Company } from '../lib/supabase'
+
+const props = defineProps<{ company: Company | null }>()
+
+const defaultAboutImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=900'
+const aboutImg = computed(() => props.company?.banner_url || defaultAboutImg)
+const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
+const aboutImgAlt = computed(() => `Interior do ${companyName.value}`)
 
 const features = [
   { title: 'Profissionais Experientes', desc: 'Equipe com mais de 15 anos de experiência no mercado da beleza.' },
@@ -13,7 +21,7 @@ const features = [
   <section id="sobre" class="section about-section">
     <div class="container about-container">
       <div class="about-image">
-        <img :src="aboutImg" alt="Interior do Salão Nadja Gomes" />
+        <img :src="aboutImg" :alt="aboutImgAlt" />
         <div class="about-badge">
           <span class="badge-num">15+</span>
           <span class="badge-label">Anos de<br>experiência</span>
@@ -24,7 +32,7 @@ const features = [
         <p class="about-eyebrow">Sobre nós</p>
         <h2 class="about-title">Beleza e <span class="gold-text">cuidado</span> em cada detalhe</h2>
         <p class="about-text">
-          O Salão Nadja Gomes nasceu da paixão por realçar a beleza de cada
+            O {{ companyName }} nasceu da paixão por realçar a beleza de cada
           cliente. Com anos de experiência, nossa equipe oferece serviços
           de alta qualidade em um ambiente acolhedor e sofisticado.
         </p>

@@ -58,7 +58,7 @@ onMounted(async () => {
       <p class="page-subtitle">Visão geral do seu estabelecimento</p>
     </div>
 
-    <div v-if="loading" class="loading-state">Carregando...</div>
+    <div v-if="loading" class="loading-state" aria-live="polite" aria-busy="true">Carregando...</div>
 
     <template v-else>
       <div class="stats-grid">

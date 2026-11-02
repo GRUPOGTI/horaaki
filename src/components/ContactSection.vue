@@ -1,36 +1,57 @@
 <script setup lang="ts">
-const contactInfo = [
+import { computed } from 'vue'
+import type { Company } from '../lib/supabase'
+
+const props = defineProps<{ company: Company | null }>()
+
+const phone = computed(() => props.company?.whatsapp ?? '(75) 99999-9999')
+const phoneHref = computed(() => `tel:${(props.company?.whatsapp ?? '75999999999').replace(/\D/g, '')}`)
+const email = computed(() => props.company?.email ?? 'contato@salonadjagomes.com.br')
+const emailHref = computed(() => `mailto:${email.value}`)
+const address = computed(() => props.company?.address ?? 'Rua das Flores, 123 — Centro, Cidade/BA')
+const hours = computed(() => props.company?.hours ?? 'Seg–Sáb: 08h às 19h')
+
+const contactInfo = computed(() => [
   {
     icon: 'M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z',
     label: 'Telefone',
-    value: '(75) 99999-9999',
-    href: 'tel:+75999999999',
+    value: phone.value,
+    href: phoneHref.value,
   },
   {
     icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     label: 'Endereço',
-    value: 'Rua das Flores, 123 — Centro, Cidade/BA',
-    href: 'https://maps.google.com',
+    value: address.value,
+    href: `https://maps.google.com/?q=${encodeURIComponent(address.value)}`,
   },
   {
     icon: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM22 7l-10 5L2 7',
     label: 'E-mail',
-    value: 'contato@salonadjagomes.com.br',
-    href: 'mailto:contato@salonadjagomes.com.br',
+    value: email.value,
+    href: emailHref.value,
   },
   {
     icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2',
     label: 'Horário',
-    value: 'Seg–Sáb: 08h às 19h',
+    value: hours.value,
     href: '',
   },
-]
+])
 
-const socialLinks = [
-  { name: 'Instagram', icon: 'M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.72 3.72 0 0 1-1.38-.9 3.72 3.72 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8.24a3.24 3.24 0 1 1 0-6.48 3.24 3.24 0 0 1 0 6.48zm5.2-8.44a1.17 1.17 0 1 0 0 2.34 1.17 1.17 0 0 0 0-2.34z' },
-  { name: 'WhatsApp', icon: 'M17.47 14.38c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35zM12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z' },
-  { name: 'Facebook', icon: 'M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z' },
-]
+const socialLinks = computed(() => {
+  const links: { name: string; href: string; icon: string }[] = []
+  if (props.company?.instagram_url) {
+    links.push({ name: 'Instagram', href: props.company.instagram_url, icon: 'M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.72 3.72 0 0 1-1.38-.9 3.72 3.72 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 8.24a3.24 3.24 0 1 1 0-6.48 3.24 3.24 0 0 1 0 6.48zm5.2-8.44a1.17 1.17 0 1 0 0 2.34 1.17 1.17 0 0 0 0-2.34z' })
+  }
+  if (props.company?.whatsapp) {
+    const waNum = props.company.whatsapp.replace(/\D/g, '')
+    links.push({ name: 'WhatsApp', href: `https://wa.me/${waNum}`, icon: 'M17.47 14.38c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.95 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51l-.57-.01c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.09 3.2 5.07 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35zM12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2z' })
+  }
+  if (props.company?.facebook_url) {
+    links.push({ name: 'Facebook', href: props.company.facebook_url, icon: 'M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z' })
+  }
+  return links
+})
 </script>
 
 <template>
@@ -66,7 +87,9 @@ const socialLinks = [
             <a
               v-for="s in socialLinks"
               :key="s.name"
-              href="#"
+              :href="s.href"
+              target="_blank"
+              rel="noopener"
               class="social-link"
               :aria-label="s.name"
             >
@@ -84,7 +107,7 @@ const socialLinks = [
               <circle cx="12" cy="10" r="3" />
             </svg>
             <p>Mapa interativo</p>
-            <span>Rua das Flores, 123 — Centro</span>
+            <span>{{ address }}</span>
           </div>
         </div>
       </div>

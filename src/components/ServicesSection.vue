@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { supabase, type Service } from '../lib/supabase'
+
+const props = defineProps<{ empresaId?: string | null }>()
 
 const services = ref<Service[]>([])
 const loading = ref(true)
@@ -47,12 +49,20 @@ function selectService(service: Service) {
   if (el) el.scrollIntoView({ behavior: 'smooth' })
 }
 
-onMounted(async () => {
-  const { data, error: err } = await supabase
+async function loadServices() {
+  loading.value = true
+  error.value = false
+  let query = supabase
     .from('services')
     .select('*')
     .eq('active', true)
     .order('display_order', { ascending: true })
+
+  if (props.empresaId) {
+    query = query.eq('empresa_id', props.empresaId)
+  }
+
+  const { data, error: err } = await query
 
   if (err) {
     error.value = true
@@ -60,7 +70,10 @@ onMounted(async () => {
     services.value = data || []
   }
   loading.value = false
-})
+}
+
+onMounted(loadServices)
+watch(() => props.empresaId, loadServices)
 </script>
 
 <template>
@@ -72,22 +85,25 @@ onMounted(async () => {
         experientes e produtos de alta qualidade.
       </p>
 
-      <div v-if="loading" class="loading-grid">
+      <div v-if="loading" class="loading-grid" aria-live="polite" aria-busy="true">
         <div v-for="i in 6" :key="i" class="skeleton-card"></div>
       </div>
 
-      <div v-else-if="error" class="error-msg">
+      <div v-else-if="error" class="error-msg" role="alert">
         Não foi possível carregar os serviços. Tente novamente mais tarde.
       </div>
 
       <template v-else>
-        <div class="categories">
+        <div class="categories" role="tablist" aria-label="Filtrar serviços por categoria">
           <button
             v-for="cat in categories"
             :key="cat"
             class="category-chip"
             :class="{ active: activeCategory === cat }"
             @click="activeCategory = cat"
+            role="tab"
+            :aria-selected="activeCategory === cat"
+            :aria-pressed="activeCategory === cat"
           >
             {{ cat }}
           </button>
@@ -98,7 +114,12 @@ onMounted(async () => {
             v-for="service in filteredServices"
             :key="service.id"
             class="service-card"
+            tabindex="0"
+            role="button"
+            :aria-label="`Agendar ${service.name}`"
             @click="selectService(service)"
+            @keydown.enter="selectService(service)"
+            @keydown.space.prevent="selectService(service)"
           >
             <div class="service-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -111,7 +132,7 @@ onMounted(async () => {
               <span class="service-price">{{ formatPrice(service.price) }}</span>
               <span class="service-duration">{{ formatDuration(service.duration_min) }}</span>
             </div>
-            <button class="service-btn">Agendar</button>
+            <button class="service-btn" @click.stop="selectService(service)">Agendar</button>
           </article>
         </div>
       </template>

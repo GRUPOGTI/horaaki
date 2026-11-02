@@ -1,5 +1,13 @@
 <script setup lang="ts">
-const heroImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=1920'
+import { computed } from 'vue'
+import type { Company } from '../lib/supabase'
+
+const props = defineProps<{ company: Company | null }>()
+
+const defaultHeroImg = 'https://images.pexels.com/photos/7195803/pexels-photo-7195803.jpeg?auto=compress&cs=tinysrgb&w=1920'
+const heroImg = computed(() => props.company?.banner_url || defaultHeroImg)
+const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
+const companyDesc = computed(() => props.company?.description ?? 'Sua beleza é nossa arte. Oferecemos cortes, coloração, tratamentos e serviços de estética com profissionais experientes e produtos de alta qualidade.')
 
 function scrollTo(href: string) {
   const el = document.querySelector(href)
@@ -14,11 +22,9 @@ function scrollTo(href: string) {
 
     <div class="container hero-content">
       <p class="hero-eyebrow">Bem-vinda ao</p>
-      <h1 class="hero-title">Salão <span class="gold-text">Nadja Gomes</span></h1>
+      <h1 class="hero-title"><span class="gold-text">{{ companyName }}</span></h1>
       <p class="hero-desc">
-        Sua beleza é nossa arte. Oferecemos cortes, coloração, tratamentos
-        e serviços de estética com profissionais experientes e produtos
-        de alta qualidade.
+        {{ companyDesc }}
       </p>
       <div class="hero-actions">
         <button class="btn btn-primary" @click="scrollTo('#agendar')">
@@ -47,10 +53,10 @@ function scrollTo(href: string) {
       </div>
     </div>
 
-    <div class="hero-scroll" @click="scrollTo('#servicos')">
+    <button class="hero-scroll" @click="scrollTo('#servicos')" aria-label="Rolar para a seção de serviços">
       <span>Role para descobrir</span>
-      <span class="scroll-line"></span>
-    </div>
+      <span class="scroll-line" aria-hidden="true"></span>
+    </button>
   </section>
 </template>
 

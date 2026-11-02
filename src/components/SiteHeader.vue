@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import type { Company } from '../lib/supabase'
+
+const props = defineProps<{ company: Company | null }>()
+
+const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
+const companyInitial = computed(() => (props.company?.name ?? 'N').charAt(0).toUpperCase())
 
 const scrolled = ref(false)
 const mobileMenuOpen = ref(false)
@@ -19,7 +25,11 @@ function handleScroll() {
 function scrollTo(href: string) {
   mobileMenuOpen.value = false
   const el = document.querySelector(href)
-  if (el) el.scrollIntoView({ behavior: 'smooth' })
+  if (el) {
+    el.setAttribute('tabindex', '-1')
+    ;(el as HTMLElement).focus({ preventScroll: true })
+    el.scrollIntoView({ behavior: 'smooth' })
+  }
 }
 
 onMounted(() => window.addEventListener('scroll', handleScroll))
@@ -30,14 +40,14 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   <header class="header" :class="{ scrolled }">
     <div class="container header-inner">
       <a href="#home" class="logo" @click.prevent="scrollTo('#home')">
-        <span class="logo-mark">N</span>
+        <span class="logo-mark">{{ companyInitial }}</span>
         <span class="logo-text">
-          <span class="logo-name">Nadja Gomes</span>
+          <span class="logo-name">{{ companyName }}</span>
           <span class="logo-tag">Salão de Beleza</span>
         </span>
       </a>
 
-      <nav class="nav-desktop">
+      <nav class="nav-desktop" aria-label="Navegação principal">
         <a
           v-for="link in navLinks"
           :key="link.href"
@@ -52,13 +62,19 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
         Agendar
       </button>
 
-      <button class="menu-toggle" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Menu">
+      <button
+        class="menu-toggle"
+        @click="mobileMenuOpen = !mobileMenuOpen"
+        :aria-expanded="mobileMenuOpen"
+        :aria-controls="'mobile-menu'"
+        aria-label="Abrir menu de navegação"
+      >
         <span :class="{ open: mobileMenuOpen }"></span>
       </button>
     </div>
 
     <Transition name="fade">
-      <nav v-if="mobileMenuOpen" class="nav-mobile">
+      <nav v-if="mobileMenuOpen" id="mobile-menu" class="nav-mobile" aria-label="Navegação mobile">
         <a
           v-for="link in navLinks"
           :key="link.href"

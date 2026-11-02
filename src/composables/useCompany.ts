@@ -1,10 +1,12 @@
-import { ref } from 'vue'
+import { ref, readonly } from 'vue'
 import { supabase, type Company, type CompanyMember } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
 const company = ref<Company | null>(null)
 const companyLoading = ref(false)
 const members = ref<CompanyMember[]>([])
+const userCompanies = ref<Company[]>([])
+const activeCompanyId = ref<string | null>(null)
 
 export function useCompany() {
   const { user } = useAuth()
@@ -19,11 +21,31 @@ export function useCompany() {
 
     if (!error && data) {
       company.value = data as Company
+      activeCompanyId.value = data.id
     } else {
       company.value = null
     }
     companyLoading.value = false
     return company.value
+  }
+
+  async function loadUserCompanies() {
+    if (!user.value) {
+      userCompanies.value = []
+      return userCompanies.value
+    }
+
+    const { data, error } = await supabase
+      .from('company_members')
+      .select('company_id, companies(*)')
+      .eq('user_id', user.value.id)
+
+    if (!error && data) {
+      userCompanies.value = (data as any[]).map((row) => row.companies as Company).filter(Boolean)
+    } else {
+      userCompanies.value = []
+    }
+    return userCompanies.value
   }
 
   async function loadCompanyByUser() {
@@ -34,51 +56,57 @@ export function useCompany() {
 
     companyLoading.value = true
 
-    // First try via company_members (new system)
-    const { data: memberData } = await supabase
-      .from('company_members')
-      .select('company_id')
-      .eq('user_id', user.value.id)
-      .maybeSingle()
+    // Load all companies this user belongs to
+    await loadUserCompanies()
 
-    if (memberData) {
-      const { data: compData, error: compError } = await supabase
+    if (userCompanies.value.length === 0) {
+      // Fallback: try via companies.user_id (legacy)
+      const { data: legacyData, error: legacyError } = await supabase
         .from('companies')
         .select('*')
-        .eq('id', memberData.company_id)
+        .eq('user_id', user.value.id)
         .maybeSingle()
 
-      if (!compError && compData) {
-        company.value = compData as Company
+      if (!legacyError && legacyData) {
+        company.value = legacyData as Company
+        activeCompanyId.value = legacyData.id
+        userCompanies.value = [legacyData as Company]
+        // Auto-create a company_members entry for the owner
+        await supabase
+          .from('company_members')
+          .insert({
+            company_id: legacyData.id,
+            user_id: user.value.id,
+            role: 'owner',
+          })
         companyLoading.value = false
         return company.value
       }
-    }
 
-    // Fallback: try via companies.user_id (legacy)
-    const { data: legacyData, error: legacyError } = await supabase
-      .from('companies')
-      .select('*')
-      .eq('user_id', user.value.id)
-      .maybeSingle()
-
-    if (!legacyError && legacyData) {
-      company.value = legacyData as Company
-      // Auto-create a company_members entry for the owner
-      await supabase
-        .from('company_members')
-        .insert({
-          company_id: legacyData.id,
-          user_id: user.value.id,
-          role: 'owner',
-        })
+      company.value = null
       companyLoading.value = false
-      return company.value
+      return null
     }
 
-    company.value = null
+    // If we have an active company ID stored, use it; otherwise use the first
+    const targetId = activeCompanyId.value && userCompanies.value.some((c) => c.id === activeCompanyId.value)
+      ? activeCompanyId.value
+      : userCompanies.value[0].id
+
+    const found = userCompanies.value.find((c) => c.id === targetId) || userCompanies.value[0]
+    company.value = found
+    activeCompanyId.value = found.id
     companyLoading.value = false
-    return null
+    return company.value
+  }
+
+  async function setActiveCompany(companyId: string) {
+    const found = userCompanies.value.find((c) => c.id === companyId)
+    if (found) {
+      company.value = found
+      activeCompanyId.value = companyId
+    }
+    return company.value
   }
 
   async function loadMembers(companyId: string) {
@@ -149,12 +177,15 @@ export function useCompany() {
 
     if (error) throw error
     if (data) {
-      company.value = data as Company
+      const newCompany = data as Company
+      company.value = newCompany
+      activeCompanyId.value = newCompany.id
+      userCompanies.value = [...userCompanies.value, newCompany]
       // Add creator as owner in company_members
       await supabase
         .from('company_members')
         .insert({
-          company_id: data.id,
+          company_id: newCompany.id,
           user_id: user.value.id,
           role: 'owner',
         })
@@ -188,17 +219,23 @@ export function useCompany() {
 
     if (error) throw error
     if (data) {
-      company.value = data as Company
+      const updated = data as Company
+      company.value = updated
+      userCompanies.value = userCompanies.value.map((c) => (c.id === updated.id ? updated : c))
     }
     return company.value
   }
 
   return {
-    company,
-    companyLoading,
-    members,
+    company: readonly(company),
+    companyLoading: readonly(companyLoading),
+    members: readonly(members),
+    userCompanies: readonly(userCompanies),
+    activeCompanyId: readonly(activeCompanyId),
     loadCompanyBySlug,
     loadCompanyByUser,
+    loadUserCompanies,
+    setActiveCompany,
     loadMembers,
     inviteMember,
     removeMember,

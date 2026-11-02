@@ -43,7 +43,7 @@ async function handleSignOut() {
 
 <template>
   <div class="admin-layout">
-    <aside class="sidebar" :class="{ open: sidebarOpen }">
+    <aside class="sidebar" :class="{ open: sidebarOpen }" aria-label="Barra lateral de navegação">
       <div class="sidebar-header">
         <router-link to="/painel" class="sidebar-logo">
           <span class="logo-mark">H</span>
@@ -51,7 +51,7 @@ async function handleSignOut() {
         </router-link>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="Navegação do painel">
         <RouterLink
           v-for="item in navItems"
           :key="item.name"
@@ -72,7 +72,7 @@ async function handleSignOut() {
           <span class="user-avatar">{{ user?.email?.charAt(0).toUpperCase() ?? '?' }}</span>
           <span class="user-email">{{ user?.email ?? '' }}</span>
         </div>
-        <button class="btn-signout" @click="handleSignOut">
+        <button class="btn-signout" @click="handleSignOut" aria-label="Sair da conta">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
           </svg>
@@ -81,11 +81,11 @@ async function handleSignOut() {
       </div>
     </aside>
 
-    <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false" aria-hidden="true"></div>
 
     <div class="admin-main">
       <header class="admin-topbar">
-        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen" aria-label="Menu">
+        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen" aria-label="Abrir menu lateral">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
         </button>
         <h2 class="topbar-title">{{ company?.name || 'Painel Administrativo' }}</h2>
@@ -96,7 +96,9 @@ async function handleSignOut() {
       </header>
 
       <div class="admin-content">
-        <RouterView />
+        <main id="main-content">
+          <RouterView />
+        </main>
       </div>
     </div>
   </div>

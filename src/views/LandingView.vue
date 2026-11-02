@@ -53,7 +53,7 @@ const steps = [
           <span class="brand-mark">H</span>
           <span class="brand-name">Horaki</span>
         </div>
-        <nav class="header-nav">
+        <nav class="header-nav" aria-label="Navegação da landing page">
           <a href="#recursos" @click.prevent="scrollTo('#recursos')">Recursos</a>
           <a href="#como-funciona" @click.prevent="scrollTo('#como-funciona')">Como funciona</a>
         </nav>
@@ -85,6 +85,8 @@ const steps = [
         </div>
       </div>
     </section>
+
+    <main id="main-content">
 
     <section id="recursos" class="section">
       <div class="container">
@@ -123,6 +125,8 @@ const steps = [
         </div>
       </div>
     </section>
+
+    </main>
 
     <footer class="landing-footer">
       <div class="container">

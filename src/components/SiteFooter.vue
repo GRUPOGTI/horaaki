@@ -1,5 +1,16 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { Company } from '../lib/supabase'
+
+const props = defineProps<{ company: Company | null }>()
+
 const year = new Date().getFullYear()
+const companyName = computed(() => props.company?.name ?? 'Nadja Gomes')
+const companyInitial = computed(() => (props.company?.name ?? 'N').charAt(0).toUpperCase())
+const phone = computed(() => props.company?.whatsapp ?? '(75) 99999-9999')
+const email = computed(() => props.company?.email ?? 'contato@salonadjagomes.com.br')
+const address = computed(() => props.company?.address ?? 'Rua das Flores, 123 — Centro')
+const hours = computed(() => props.company?.hours ?? 'Seg–Sáb: 08h às 19h')
 </script>
 
 <template>
@@ -7,8 +18,8 @@ const year = new Date().getFullYear()
     <div class="container footer-inner">
       <div class="footer-brand">
         <div class="footer-logo">
-          <span class="logo-mark">N</span>
-          <span class="logo-name">Nadja Gomes</span>
+          <span class="logo-mark">{{ companyInitial }}</span>
+          <span class="logo-name">{{ companyName }}</span>
         </div>
         <p class="footer-tag">Salão de Beleza</p>
         <p class="footer-desc">
@@ -28,16 +39,16 @@ const year = new Date().getFullYear()
 
       <div class="footer-contact">
         <h4>Contato</h4>
-        <p>(75) 99999-9999</p>
-        <p>contato@salonadjagomes.com.br</p>
-        <p>Rua das Flores, 123 — Centro</p>
-        <p>Seg–Sáb: 08h às 19h</p>
+        <p>{{ phone }}</p>
+        <p>{{ email }}</p>
+        <p>{{ address }}</p>
+        <p>{{ hours }}</p>
       </div>
     </div>
 
     <div class="footer-bottom">
       <div class="container">
-        <p>&copy; {{ year }} Salão Nadja Gomes. Todos os direitos reservados.</p>
+        <p>&copy; {{ year }} {{ companyName }}. Todos os direitos reservados.</p>
       </div>
     </div>
   </footer>

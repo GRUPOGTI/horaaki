@@ -49,6 +49,18 @@ export interface CompanyMember {
   created_at: string
 }
 
+export interface Professional {
+  id: string
+  empresa_id: string
+  name: string
+  role: string
+  bio: string | null
+  photo_url: string | null
+  active: boolean
+  display_order: number
+  created_at: string
+}
+
 export interface Booking {
   id: string
   client_name: string

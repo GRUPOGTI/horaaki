@@ -29,9 +29,9 @@ export function useBookings() {
     }
   }
 
-  if (!initialized) {
+  function initRealtime() {
+    if (initialized) return
     initialized = true
-    loadBookings()
 
     supabase
       .channel('bookings-realtime')
@@ -68,6 +68,8 @@ export function useBookings() {
       )
       .subscribe()
   }
+
+  initRealtime()
 
   function clearNewBookingCount() {
     newBookingCount.value = 0

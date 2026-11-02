@@ -203,15 +203,15 @@ function getStatusColor(status: string): string {
       </div>
     </div>
 
-    <p v-if="errorMsg" class="error-banner">{{ errorMsg }}</p>
-    <p v-if="successMsg" class="success-banner">{{ successMsg }}</p>
+    <p v-if="errorMsg" class="error-banner" role="alert">{{ errorMsg }}</p>
+    <p v-if="successMsg" class="success-banner" role="status">{{ successMsg }}</p>
 
     <!-- LIST VIEW -->
     <template v-if="viewMode === 'list'">
       <div class="filters-bar">
         <div class="filter-group">
-          <label>Status</label>
-          <select v-model="filterStatus">
+          <label for="filter-status">Status</label>
+          <select id="filter-status" v-model="filterStatus">
             <option value="all">Todos</option>
             <option value="pending">Pendentes</option>
             <option value="confirmed">Confirmados</option>
@@ -220,12 +220,12 @@ function getStatusColor(status: string): string {
           </select>
         </div>
         <div class="filter-group">
-          <label>Data</label>
-          <input v-model="filterDate" type="date" />
+          <label for="filter-date">Data</label>
+          <input id="filter-date" v-model="filterDate" type="date" />
         </div>
         <div class="filter-group filter-search">
-          <label>Buscar</label>
-          <input v-model="searchQuery" type="text" placeholder="Nome, telefone ou serviço..." />
+          <label for="filter-search">Buscar</label>
+          <input id="filter-search" v-model="searchQuery" type="text" placeholder="Nome, telefone ou serviço..." />
         </div>
         <button class="btn-clear" @click="clearFilters">Limpar filtros</button>
       </div>
@@ -278,7 +278,7 @@ function getStatusColor(status: string): string {
                     class="action-delete"
                     :disabled="actionLoading === b.id"
                     @click="handleDelete(b.id)"
-                    title="Excluir"
+                    aria-label="Excluir agendamento"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" /></svg>
                   </button>
@@ -294,15 +294,15 @@ function getStatusColor(status: string): string {
     <template v-else>
       <div class="calendar-toolbar">
         <div class="cal-nav">
-          <button class="cal-nav-btn" @click="prevMonth">
+          <button class="cal-nav-btn" @click="prevMonth" aria-label="Mês anterior">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
           <h3 class="cal-title">{{ calendarTitle }}</h3>
-          <button class="cal-nav-btn" @click="nextMonth">
+          <button class="cal-nav-btn" @click="nextMonth" aria-label="Próximo mês">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
-        <button class="btn-today" @click="goToday">Hoje</button>
+        <button class="btn-today" @click="goToday" aria-label="Ir para hoje">Hoje</button>
       </div>
 
       <div class="calendar-grid">
@@ -314,9 +314,14 @@ function getStatusColor(status: string): string {
           :class="{
             'cal-day-empty': !day.date,
             'cal-day-today': day.date === todayStr,
-            'cal-day-has': day.bookings.length > 0,
+            'cal-day-has': day.date && day.bookings.length > 0,
           }"
+          :tabindex="day.date && day.bookings.length > 0 ? 0 : -1"
+          :role="day.date && day.bookings.length > 0 ? 'button' : undefined"
+          :aria-label="day.date && day.bookings.length > 0 ? `${day.bookings.length} agendamento(s) em ${day.date}` : undefined"
           @click="day.date && day.bookings.length > 0 && openDayBookings(day.date)"
+          @keydown.enter="day.date && day.bookings.length > 0 && openDayBookings(day.date)"
+          @keydown.space.prevent="day.date && day.bookings.length > 0 && openDayBookings(day.date)"
         >
           <span v-if="day.day" class="cal-day-num">{{ day.day }}</span>
           <div v-if="day.bookings.length > 0" class="cal-day-events">
@@ -339,10 +344,10 @@ function getStatusColor(status: string): string {
     <Teleport to="body">
       <Transition name="fade">
         <div v-if="selectedDateBookings" class="modal-overlay" @click="closeDayBookings">
-          <div class="modal" @click.stop>
+          <div class="modal" role="dialog" aria-modal="true" aria-label="Detalhes do dia" @click.stop>
             <div class="modal-header">
               <h3>{{ formatDate(selectedDateBookings[0]?.booking_date || '') }}</h3>
-              <button class="modal-close" @click="closeDayBookings">
+              <button class="modal-close" @click="closeDayBookings" aria-label="Fechar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>

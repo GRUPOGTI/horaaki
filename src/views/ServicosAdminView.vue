@@ -2,6 +2,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { supabase, type Service } from '../lib/supabase'
 import { formatPrice, formatDuration } from '../lib/format'
+import { useCompany } from '../composables/useCompany'
+
+const { company, loadCompanyByUser } = useCompany()
 
 const services = ref<Service[]>([])
 const loading = ref(true)
@@ -51,10 +54,11 @@ const iconPaths: Record<string, string> = {
 
 async function loadServices() {
   loading.value = true
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .order('display_order', { ascending: true })
+  let query = supabase.from('services').select('*')
+  if (company.value?.id) {
+    query = query.eq('empresa_id', company.value.id)
+  }
+  const { data, error } = await query.order('display_order', { ascending: true })
 
   if (error) {
     errorMsg.value = 'Erro ao carregar serviços.'
@@ -99,6 +103,11 @@ async function handleSubmit() {
     return
   }
 
+  if (!company.value?.id) {
+    errorMsg.value = 'Empresa não carregada. Recarregue a página.'
+    return
+  }
+
   saving.value = true
   const payload = {
     name: form.name.trim(),
@@ -109,6 +118,7 @@ async function handleSubmit() {
     icon: form.icon,
     display_order: Number(form.display_order),
     active: form.active,
+    empresa_id: company.value.id,
   }
 
   try {
@@ -151,7 +161,10 @@ async function handleDelete(service: Service) {
   }
 }
 
-onMounted(loadServices)
+onMounted(async () => {
+  await loadCompanyByUser()
+  await loadServices()
+})
 </script>
 
 <template>

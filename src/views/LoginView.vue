@@ -35,7 +35,7 @@ async function handleSubmit() {
 
 <template>
   <div class="auth-page">
-    <div class="auth-card">
+    <main class="auth-card">
       <a href="/" class="auth-logo">
         <span class="logo-mark">H</span>
         <span class="logo-name">Horaki</span>
@@ -69,7 +69,7 @@ async function handleSubmit() {
           />
         </div>
 
-        <p v-if="errorMsg" class="form-error">{{ errorMsg }}</p>
+        <p v-if="errorMsg" class="form-error" role="alert">{{ errorMsg }}</p>
 
         <button type="submit" class="btn btn-primary auth-submit" :disabled="loading">
           <span v-if="loading" class="spinner"></span>
@@ -83,7 +83,7 @@ async function handleSubmit() {
       </div>
 
       <a href="/" class="back-link">← Voltar para o site</a>
-    </div>
+    </main>
   </div>
 </template>
 

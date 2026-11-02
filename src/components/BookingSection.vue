@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, reactive, computed } from 'vue'
+import { ref, onMounted, reactive, computed, watch } from 'vue'
 import { supabase, type Service } from '../lib/supabase'
+
+const props = defineProps<{ empresaId?: string | null }>()
 
 const services = ref<Service[]>([])
 const loading = ref(false)
@@ -61,7 +63,7 @@ async function handleSubmit() {
 
   loading.value = true
 
-  const { error: err } = await supabase.from('bookings').insert({
+  const insertPayload: Record<string, unknown> = {
     client_name: form.client_name.trim(),
     client_phone: form.client_phone.trim(),
     service_id: form.service_id,
@@ -70,7 +72,12 @@ async function handleSubmit() {
     booking_time: form.booking_time,
     notes: form.notes.trim() || null,
     status: 'pending',
-  })
+  }
+  if (props.empresaId) {
+    insertPayload.empresa_id = props.empresaId
+  }
+
+  const { error: err } = await supabase.from('bookings').insert(insertPayload)
 
   loading.value = false
 
@@ -92,20 +99,31 @@ function resetForm() {
   form.notes = ''
 }
 
-onMounted(async () => {
-  const { data } = await supabase
+async function loadServices() {
+  let query = supabase
     .from('services')
     .select('*')
     .eq('active', true)
     .order('display_order', { ascending: true })
 
+  if (props.empresaId) {
+    query = query.eq('empresa_id', props.empresaId)
+  }
+
+  const { data } = await query
   if (data) services.value = data
+}
+
+onMounted(() => {
+  loadServices()
 
   window.addEventListener('select-service', (e: Event) => {
     const service = (e as CustomEvent).detail as Service
     form.service_id = service.id
   })
 })
+
+watch(() => props.empresaId, loadServices)
 </script>
 
 <template>
@@ -119,7 +137,7 @@ onMounted(async () => {
 
       <div class="booking-card">
         <Transition name="fade" mode="out-in">
-          <div v-if="submitted" key="success" class="success-state">
+          <div v-if="submitted" key="success" class="success-state" role="status" aria-live="polite">
             <div class="success-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 6L9 17l-5-5" />
@@ -217,7 +235,7 @@ onMounted(async () => {
               </div>
             </div>
 
-            <p v-if="submitError" class="form-error">{{ submitError }}</p>
+            <p v-if="submitError" class="form-error" role="alert">{{ submitError }}</p>
 
             <button type="submit" class="btn btn-primary booking-submit" :disabled="loading">
               <span v-if="loading" class="spinner"></span>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, onUnmounted, onMounted, nextTick } from 'vue'
+
 const galleryImages = [
   { url: 'https://images.pexels.com/photos/7195812/pexels-photo-7195812.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Interior do salão com produtos e recepção' },
   { url: 'https://images.pexels.com/photos/7750108/pexels-photo-7750108.jpeg?auto=compress&cs=tinysrgb&w=800', alt: 'Salão com cadeiras e espelhos iluminados' },
@@ -11,15 +13,23 @@ const galleryImages = [
 ]
 
 const lightboxIndex = ref<number | null>(null)
+const lightboxRef = ref<HTMLElement | null>(null)
+let lastFocused: HTMLElement | null = null
 
 function openLightbox(i: number) {
   lightboxIndex.value = i
   document.body.style.overflow = 'hidden'
+  lastFocused = document.activeElement as HTMLElement
+  nextTick(() => {
+    const closeBtn = lightboxRef.value?.querySelector('.lightbox-close') as HTMLElement
+    closeBtn?.focus()
+  })
 }
 
 function closeLightbox() {
   lightboxIndex.value = null
   document.body.style.overflow = ''
+  lastFocused?.focus()
 }
 
 function nextImage() {
@@ -32,13 +42,28 @@ function prevImage() {
   lightboxIndex.value = (lightboxIndex.value - 1 + galleryImages.length) % galleryImages.length
 }
 
-import { ref, onUnmounted, onMounted } from 'vue'
-
-function handleKey(e: KeyboardEvent) {
+function trapFocus(e: KeyboardEvent) {
   if (lightboxIndex.value === null) return
   if (e.key === 'Escape') closeLightbox()
   if (e.key === 'ArrowRight') nextImage()
   if (e.key === 'ArrowLeft') prevImage()
+  if (e.key === 'Tab' && lightboxRef.value) {
+    const focusable = lightboxRef.value.querySelectorAll<HTMLElement>('button, [href], [tabindex]:not([tabindex="-1"])')
+    if (focusable.length === 0) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
+}
+
+function handleKey(e: KeyboardEvent) {
+  trapFocus(e)
 }
 
 onMounted(() => window.addEventListener('keydown', handleKey))
@@ -63,10 +88,15 @@ onUnmounted(() => {
           :key="i"
           class="gallery-item"
           :class="{ 'tall': i === 0 || i === 5 }"
+          tabindex="0"
+          role="button"
+          :aria-label="`Ampliar imagem: ${img.alt}`"
           @click="openLightbox(i)"
+          @keydown.enter="openLightbox(i)"
+          @keydown.space.prevent="openLightbox(i)"
         >
           <img :src="img.url" :alt="img.alt" loading="lazy" />
-          <div class="gallery-overlay">
+          <div class="gallery-overlay" aria-hidden="true">
             <span class="gallery-zoom">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                 <circle cx="11" cy="11" r="8" />
@@ -80,11 +110,19 @@ onUnmounted(() => {
 
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="lightboxIndex !== null" class="lightbox" @click="closeLightbox">
-          <button class="lightbox-close" @click.stop="closeLightbox">
+        <div
+          v-if="lightboxIndex !== null"
+          ref="lightboxRef"
+          class="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visualização ampliada de imagem"
+          @click="closeLightbox"
+        >
+          <button class="lightbox-close" @click.stop="closeLightbox" aria-label="Fechar visualização">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
-          <button class="lightbox-nav prev" @click.stop="prevImage">
+          <button class="lightbox-nav prev" @click.stop="prevImage" aria-label="Imagem anterior">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6" /></svg>
           </button>
           <img
@@ -92,7 +130,7 @@ onUnmounted(() => {
             :alt="galleryImages[lightboxIndex].alt"
             @click.stop
           />
-          <button class="lightbox-nav next" @click.stop="nextImage">
+          <button class="lightbox-nav next" @click.stop="nextImage" aria-label="Próxima imagem">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6" /></svg>
           </button>
         </div>
