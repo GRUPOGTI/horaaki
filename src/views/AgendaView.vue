@@ -1,84 +1,44 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useBookings } from '../composables/useBookings'
 import { useCompany } from '../composables/useCompany'
-import { formatDate, formatPrice, statusLabels, statusColors } from '../lib/format'
+import { formatDate, formatPrice, formatDuration, statusLabels, statusColors } from '../lib/format'
 import { supabase, type Service, type Booking, type Professional, type Client } from '../lib/supabase'
+import { loadActiveServices, fetchAvailableSlots, createBooking } from '../lib/bookingService'
 
 const { bookings, updateBookingStatus, deleteBooking } = useBookings()
 const { company } = useCompany()
 
 const services = ref<Service[]>([])
 const professionals = ref<Professional[]>([])
-const clients = ref<Client[]>([])
+const availableSlots = ref<string[]>([])
+const slotsLoading = ref(false)
+const clientNotice = ref('')
+const clientQuery = ref('')
+const clientMatches = ref<Pick<Client, 'id' | 'name' | 'phone' | 'cpf'>[]>([])
 const showCreateModal = ref(false)
 const createLoading = ref(false)
 const createError = ref('')
 
-const createForm = ref({
-  client_id: '' as string,
-  client_name: '',
-  client_phone: '',
-  service_id: '' as string,
-  professional_id: '' as string,
+const emptyCreateForm = () => ({
+  name: '',
+  phone: '',
+  cpf: '',
+  service_id: '',
+  professional_id: '',
   booking_date: '',
   booking_time: '',
   notes: '',
-  new_client_cpf: '',
 })
 
-const filteredClients = computed(() => {
-  if (!createForm.value.client_name.trim()) return []
-  const q = createForm.value.client_name.toLowerCase().trim()
-  return clients.value.filter(
-    (c) => c.name.toLowerCase().includes(q) || c.phone.includes(q)
-  ).slice(0, 10)
-})
-
-const timeSlots = [
-  '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-  '11:00', '11:30', '13:00', '13:30', '14:00', '14:30',
-  '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
-  '18:00', '18:30',
-]
-
-const bookedSlots = computed(() => {
-  if (!createForm.value.booking_date) return new Set<string>()
-  return new Set(
-    bookings.value
-      .filter((b) => b.booking_date === createForm.value.booking_date && b.status !== 'cancelled')
-      .map((b) => b.booking_time)
-  )
-})
-
-const availableSlots = computed(() =>
-  timeSlots.filter((t) => !bookedSlots.value.has(t))
-)
-
-function selectExistingClient(c: Client) {
-  createForm.value.client_id = c.id
-  createForm.value.client_name = c.name
-  createForm.value.client_phone = c.phone
-  createForm.value.new_client_cpf = c.cpf || ''
-}
-
-function clearClientSelection() {
-  createForm.value.client_id = ''
-  createForm.value.new_client_cpf = ''
-}
+const createForm = ref(emptyCreateForm())
 
 function openCreateModal() {
-  createForm.value = {
-    client_id: '',
-    client_name: '',
-    client_phone: '',
-    service_id: '',
-    professional_id: '',
-    booking_date: '',
-    booking_time: '',
-    notes: '',
-    new_client_cpf: '',
-  }
+  createForm.value = emptyCreateForm()
+  availableSlots.value = []
+  clientNotice.value = ''
+  clientQuery.value = ''
+  clientMatches.value = []
   createError.value = ''
   showCreateModal.value = true
 }
@@ -87,77 +47,128 @@ function closeCreateModal() {
   showCreateModal.value = false
 }
 
+async function lookupClientByPhone() {
+  const companyId = company.value?.id
+  const phone = createForm.value.phone.replace(/\D/g, '')
+  clientNotice.value = ''
+  if (!companyId || phone.length < 10) return
+
+  const { data, error } = await supabase
+    .from('clients')
+    .select('name, cpf')
+    .eq('empresa_id', companyId)
+    .eq('phone', phone)
+    .maybeSingle()
+
+  if (error) {
+    clientNotice.value = 'Não foi possível consultar o cadastro deste telefone.'
+    return
+  }
+  if (data) {
+    createForm.value.name = data.name
+    createForm.value.cpf = data.cpf ?? ''
+    clientNotice.value = 'Cliente já cadastrado. Dados carregados automaticamente.'
+  } else {
+    clientNotice.value = 'Novo cliente. O cadastro será criado ao salvar o agendamento.'
+  }
+}
+
+async function searchClients() {
+  const companyId = company.value?.id
+  const term = clientQuery.value.trim().replace(/[%_,()*]/g, '')
+  clientMatches.value = []
+  if (!companyId || term.length < 2) return
+
+  const digits = term.replace(/\D/g, '')
+  const filter = digits.length >= 3
+    ? `name.ilike.%${term}%,phone.ilike.%${digits}%`
+    : `name.ilike.%${term}%`
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, phone, cpf')
+    .eq('empresa_id', companyId)
+    .or(filter)
+    .order('name')
+    .limit(8)
+
+  if (term !== clientQuery.value.trim().replace(/[%_,()*]/g, '')) return
+  if (error) {
+    clientNotice.value = 'Não foi possível pesquisar clientes.'
+    return
+  }
+  clientMatches.value = data ?? []
+}
+
+watch(clientQuery, () => { searchClients() })
+
+function selectClient(match: Pick<Client, 'name' | 'phone' | 'cpf'>) {
+  createForm.value.name = match.name
+  createForm.value.phone = match.phone
+  createForm.value.cpf = match.cpf ?? ''
+  clientQuery.value = ''
+  clientMatches.value = []
+  clientNotice.value = 'Cliente cadastrado selecionado. Dados carregados automaticamente.'
+}
+
+async function refreshSlots() {
+  createForm.value.booking_time = ''
+  availableSlots.value = []
+  const companyId = company.value?.id
+  const f = createForm.value
+  if (!companyId || !f.service_id || !f.booking_date) return
+
+  const requestKey = `${f.service_id}|${f.professional_id}|${f.booking_date}`
+  slotsLoading.value = true
+  try {
+    const slots = await fetchAvailableSlots(companyId, f.service_id, f.booking_date, f.professional_id || null)
+    const current = createForm.value
+    if (requestKey === `${current.service_id}|${current.professional_id}|${current.booking_date}`) {
+      availableSlots.value = slots
+    }
+  } catch (err) {
+    createError.value = (err as Error).message
+  } finally {
+    slotsLoading.value = false
+  }
+}
+
+watch(
+  () => [createForm.value.service_id, createForm.value.professional_id, createForm.value.booking_date],
+  () => { if (showCreateModal.value) refreshSlots() },
+)
+
 async function handleCreateBooking() {
   createError.value = ''
   const f = createForm.value
-  if (!f.client_name.trim() || !f.client_phone.trim() || !f.service_id || !f.booking_date || !f.booking_time) {
+  const companyId = company.value?.id
+  if (!companyId) {
+    createError.value = 'Empresa não carregada.'
+    return
+  }
+  if (!f.name.trim() || !f.phone.trim() || !f.service_id || !f.booking_date || !f.booking_time) {
     createError.value = 'Preencha todos os campos obrigatórios.'
     return
   }
 
   createLoading.value = true
   try {
-    const companyId = company.value?.id
-    if (!companyId) throw new Error('Empresa não carregada.')
-
-    const service = services.value.find((s) => s.id === f.service_id)
-    if (!service) throw new Error('Serviço inválido.')
-
-    let clientId: string | null = f.client_id || null
-
-    // If no existing client selected, create one (or find by phone)
-    if (!clientId) {
-      const { data: existing, error: findErr } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('empresa_id', companyId)
-        .eq('phone', f.client_phone.trim())
-        .maybeSingle()
-
-      if (findErr) throw findErr
-
-      if (existing) {
-        clientId = existing.id
-      } else {
-        const { data: newClient, error: clientErr } = await supabase
-          .from('clients')
-          .insert({
-            empresa_id: companyId,
-            name: f.client_name.trim(),
-            phone: f.client_phone.trim(),
-            cpf: f.new_client_cpf.trim() || null,
-          })
-          .select('id')
-          .maybeSingle()
-
-        if (clientErr) throw clientErr
-        if (newClient) clientId = newClient.id
-      }
-    }
-
-    const insertPayload: Record<string, unknown> = {
-      client_name: f.client_name.trim(),
-      client_phone: f.client_phone.trim(),
-      service_id: f.service_id,
-      service_name: service.name,
-      booking_date: f.booking_date,
-      booking_time: f.booking_time,
-      notes: f.notes.trim() || null,
+    await createBooking({
+      empresaId: companyId,
+      serviceId: f.service_id,
+      date: f.booking_date,
+      time: f.booking_time,
+      name: f.name,
+      phone: f.phone,
+      cpf: f.cpf,
+      notes: f.notes,
+      professionalId: f.professional_id,
       status: 'confirmed',
-      empresa_id: companyId,
-      client_id: clientId,
-      professional_id: f.professional_id || null,
-    }
-
-    const { error: bookingErr } = await supabase.from('bookings').insert(insertPayload)
-    if (bookingErr) throw bookingErr
-
-    // Reload clients list
-    await loadClients()
+    })
     showSuccess('Agendamento criado com sucesso.')
     showCreateModal.value = false
-  } catch (err: any) {
-    createError.value = err.message || 'Erro ao criar agendamento.'
+  } catch (err) {
+    createError.value = (err as Error).message
+    refreshSlots()
   } finally {
     createLoading.value = false
   }
@@ -266,38 +277,38 @@ function closeDayBookings() {
 }
 
 async function loadServices() {
-  let query = supabase.from('services').select('*').eq('active', true)
-  if (company.value?.id) {
-    query = query.eq('empresa_id', company.value.id)
+  if (!company.value?.id) return
+  try {
+    services.value = await loadActiveServices(company.value.id)
+  } catch (err) {
+    errorMsg.value = (err as Error).message
   }
-  const { data } = await query
-  if (data) services.value = data
 }
 
 async function loadProfessionals() {
   if (!company.value?.id) return
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('professionals')
     .select('*')
     .eq('empresa_id', company.value.id)
     .eq('active', true)
     .order('display_order', { ascending: true })
-  if (data) professionals.value = data
+  if (error) {
+    errorMsg.value = 'Não foi possível carregar os profissionais.'
+    return
+  }
+  professionals.value = data ?? []
 }
 
-async function loadClients() {
-  if (!company.value?.id) return
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('empresa_id', company.value.id)
-    .order('name', { ascending: true })
-  if (data) clients.value = data
-}
-
-loadServices()
-loadProfessionals()
-loadClients()
+watch(
+  () => company.value?.id,
+  (id) => {
+    if (!id) return
+    loadServices()
+    loadProfessionals()
+  },
+  { immediate: true },
+)
 
 function getServicePrice(serviceId: string | null): string {
   if (!serviceId) return '-'
@@ -600,47 +611,36 @@ function getStatusColor(status: string): string {
 
             <form class="create-form" @submit.prevent="handleCreateBooking">
               <div class="form-group">
-                <label for="new-client-name">Cliente *</label>
-                <input
-                  id="new-client-name"
-                  v-model="createForm.client_name"
-                  type="text"
-                  placeholder="Nome do cliente"
-                  required
-                  @input="clearClientSelection"
-                />
-                <div v-if="!createForm.client_id && filteredClients.length > 0" class="client-suggestions">
-                  <button
-                    v-for="c in filteredClients"
-                    :key="c.id"
-                    type="button"
-                    class="client-suggestion"
-                    @click="selectExistingClient(c)"
-                  >
+                <label for="client-search">Buscar cliente cadastrado</label>
+                <input id="client-search" v-model="clientQuery" type="search" placeholder="Nome ou telefone" autocomplete="off" />
+                <div v-if="clientMatches.length > 0" class="client-matches">
+                  <button v-for="c in clientMatches" :key="c.id" type="button" class="client-match" @click="selectClient(c)">
                     {{ c.name }} — {{ c.phone }}
                   </button>
                 </div>
               </div>
 
+              <div class="form-group">
+                <label for="new-client-name">Nome completo *</label>
+                <input id="new-client-name" v-model="createForm.name" type="text" placeholder="Nome do cliente" required />
+              </div>
+
               <div class="form-row">
                 <div class="form-group">
-                  <label for="new-client-phone">Telefone *</label>
+                  <label for="new-client-phone">Telefone / WhatsApp *</label>
                   <input
                     id="new-client-phone"
-                    v-model="createForm.client_phone"
+                    v-model="createForm.phone"
                     type="tel"
                     placeholder="(00) 00000-0000"
                     required
+                    @blur="lookupClientByPhone"
                   />
+                  <p v-if="clientNotice" class="field-hint" role="status">{{ clientNotice }}</p>
                 </div>
                 <div class="form-group">
-                  <label for="new-client-cpf">CPF</label>
-                  <input
-                    id="new-client-cpf"
-                    v-model="createForm.new_client_cpf"
-                    type="text"
-                    placeholder="000.000.000-00"
-                  />
+                  <label for="new-client-cpf">CPF (opcional)</label>
+                  <input id="new-client-cpf" v-model="createForm.cpf" type="text" placeholder="000.000.000-00" />
                 </div>
               </div>
 
@@ -649,7 +649,7 @@ function getStatusColor(status: string): string {
                 <select id="new-service" v-model="createForm.service_id" required>
                   <option value="" disabled>Selecione um serviço</option>
                   <option v-for="s in services" :key="s.id" :value="s.id">
-                    {{ s.name }} — {{ formatPrice(s.price) }}
+                    {{ s.name }} — {{ formatPrice(s.price) }} ({{ formatDuration(s.duration_min) }})
                   </option>
                 </select>
               </div>
@@ -677,10 +677,23 @@ function getStatusColor(status: string): string {
                 </div>
                 <div class="form-group">
                   <label for="new-time">Horário *</label>
-                  <select id="new-time" v-model="createForm.booking_time" required>
-                    <option value="" disabled>Selecione um horário</option>
+                  <select
+                    id="new-time"
+                    v-model="createForm.booking_time"
+                    required
+                    :disabled="!createForm.service_id || !createForm.booking_date || slotsLoading"
+                  >
+                    <option value="" disabled>
+                      {{ slotsLoading ? 'Carregando horários...' : 'Selecione um horário' }}
+                    </option>
                     <option v-for="t in availableSlots" :key="t" :value="t">{{ t }}</option>
                   </select>
+                  <p
+                    v-if="createForm.service_id && createForm.booking_date && !slotsLoading && availableSlots.length === 0"
+                    class="field-hint"
+                  >
+                    Nenhum horário disponível nesta data.
+                  </p>
                 </div>
               </div>
 
@@ -1340,7 +1353,12 @@ function getStatusColor(status: string): string {
   gap: 16px;
 }
 
-.client-suggestions {
+.field-hint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.client-matches {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1352,7 +1370,7 @@ function getStatusColor(status: string): string {
   overflow-y: auto;
 }
 
-.client-suggestion {
+.client-match {
   text-align: left;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
@@ -1361,7 +1379,7 @@ function getStatusColor(status: string): string {
   transition: background var(--transition);
 }
 
-.client-suggestion:hover {
+.client-match:hover {
   background: var(--color-bg-card);
   color: var(--color-text);
 }

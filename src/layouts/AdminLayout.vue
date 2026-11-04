@@ -43,6 +43,14 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => company.value?.name,
+  (name) => {
+    document.title = name ? `${name} · Painel` : 'Painel Administrativo'
+  },
+  { immediate: true },
+)
+
 async function handleSignOut() {
   await signOut()
   router.push('/login')
@@ -56,8 +64,8 @@ async function handleSignOut() {
     <aside class="sidebar" :class="{ open: sidebarOpen }" aria-label="Barra lateral de navegação">
       <div class="sidebar-header">
         <router-link to="/painel" class="sidebar-logo">
-          <span class="logo-mark">H</span>
-          <span class="logo-name">Horaki</span>
+          <span class="logo-mark">{{ company?.name?.charAt(0).toUpperCase() ?? 'H' }}</span>
+          <span class="logo-name">{{ company?.name || 'Painel' }}</span>
         </router-link>
       </div>
 
@@ -99,6 +107,9 @@ async function handleSignOut() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
         </button>
         <h2 class="topbar-title">{{ company?.name || 'Painel Administrativo' }}</h2>
+        <a v-if="company?.slug" class="public-link" :href="`/agenda/${company.slug}`" target="_blank" rel="noopener">
+          Ver página pública
+        </a>
         <div v-if="newBookingCount > 0" class="new-booking-alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" /></svg>
           <span>{{ newBookingCount }} novo(s) agendamento(s)</span>
@@ -329,6 +340,14 @@ async function handleSignOut() {
 .menu-btn svg {
   width: 20px;
   height: 20px;
+}
+
+.public-link {
+  margin-left: auto;
+  color: var(--color-gold);
+  font-size: 0.9rem;
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
 .topbar-title {
