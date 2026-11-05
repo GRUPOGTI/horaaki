@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { ACCOUNT_HOME, getAccountType, type AccountType } from '../lib/accountType'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -27,6 +28,12 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/criar-conta-cliente',
+      name: 'criar-conta-cliente',
+      component: () => import('../views/ClientSignupView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
       path: '/recuperar-senha',
       name: 'recuperar-senha',
       component: () => import('../views/RecuperarSenhaView.vue'),
@@ -35,7 +42,7 @@ const router = createRouter({
     {
       path: '/painel',
       component: () => import('../layouts/AdminLayout.vue'),
-      meta: { requiresAuth: true },
+      meta: { requiredAccount: 'system' satisfies AccountType },
       children: [
         {
           path: '',
@@ -69,8 +76,22 @@ const router = createRouter({
         },
       ],
     },
+    {
+      path: '/minha-conta',
+      name: 'minha-conta',
+      component: () => import('../views/ClientAreaView.vue'),
+      meta: { requiredAccount: 'client' satisfies AccountType },
+    },
   ],
 })
+
+async function resolveAccountType(): Promise<AccountType | null> {
+  try {
+    return await getAccountType()
+  } catch {
+    return null
+  }
+}
 
 router.beforeEach(async (to) => {
   const { user, loading } = useAuth()
@@ -85,13 +106,23 @@ router.beforeEach(async (to) => {
     })
   }
 
-  if (to.meta.requiresAuth && !user.value) {
+  const requiredAccount = to.meta.requiredAccount as AccountType | undefined
+  if (!requiredAccount && !to.meta.guestOnly) return
+
+  if (!user.value) {
+    return requiredAccount ? { name: 'login' } : undefined
+  }
+
+  const type = await resolveAccountType()
+
+  if (requiredAccount) {
+    if (type === requiredAccount) return
+    if (type === 'system' || type === 'client') return ACCOUNT_HOME[type]
     return { name: 'login' }
   }
 
-  if (to.meta.guestOnly && user.value) {
-    return { name: 'painel' }
-  }
+  if (type === 'system' || type === 'client') return ACCOUNT_HOME[type]
+  return undefined
 })
 
 export default router

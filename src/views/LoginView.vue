@@ -2,9 +2,10 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
+import { ACCOUNT_HOME, getAccountType } from '../lib/accountType'
 
 const router = useRouter()
-const { signIn } = useAuth()
+const { signIn, signOut } = useAuth()
 
 const form = reactive({
   email: '',
@@ -24,7 +25,13 @@ async function handleSubmit() {
   loading.value = true
   try {
     await signIn(form.email, form.password)
-    router.push('/painel')
+    const type = await getAccountType()
+    if (type === 'none') {
+      await signOut()
+      errorMsg.value = 'Esta conta não tem acesso ao painel nem à área do cliente.'
+      return
+    }
+    router.push(ACCOUNT_HOME[type])
   } catch (err: any) {
     errorMsg.value = err.message || 'Erro ao entrar. Verifique seus dados.'
   } finally {
@@ -42,7 +49,7 @@ async function handleSubmit() {
       </a>
 
       <h1 class="auth-title">Entrar</h1>
-      <p class="auth-subtitle">Acesse o painel da sua empresa</p>
+      <p class="auth-subtitle">Acesse o painel da sua empresa ou a área do cliente</p>
 
       <form @submit.prevent="handleSubmit" class="auth-form">
         <div class="form-group">
@@ -78,7 +85,11 @@ async function handleSubmit() {
       </form>
 
       <div class="auth-links">
-        <router-link to="/criar-conta">Criar conta</router-link>
+        <router-link to="/criar-conta">Criar conta Empresa</router-link>
+        <router-link to="/criar-conta-cliente">Criar conta Cliente</router-link>
+      </div>
+
+      <div class="auth-links-center">
         <router-link to="/recuperar-senha">Esqueci minha senha</router-link>
       </div>
 
@@ -234,6 +245,20 @@ async function handleSubmit() {
 }
 
 .auth-links a:hover {
+  color: var(--color-gold-light);
+}
+
+.auth-links-center {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 0.88rem;
+}
+
+.auth-links-center a {
+  color: var(--color-gold);
+}
+
+.auth-links-center a:hover {
   color: var(--color-gold-light);
 }
 

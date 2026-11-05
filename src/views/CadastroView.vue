@@ -75,8 +75,8 @@ async function handleSubmit() {
         <span class="logo-name">Horaki</span>
       </a>
 
-      <h1 class="auth-title">Criar Conta</h1>
-      <p class="auth-subtitle">Cadastre sua empresa no Horaki</p>
+      <h1 class="auth-title">Criar conta da Empresa</h1>
+      <p class="auth-subtitle">Cadastre seu estabelecimento e acesse o painel de gestão</p>
 
       <form @submit.prevent="handleSubmit" class="auth-form">
         <div class="form-group">

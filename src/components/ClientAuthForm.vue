@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { supabase } from '../lib/supabase'
 import {
   signUpClient,
   signInClient,
@@ -32,8 +31,6 @@ async function handleSubmit() {
       await signInClient(form.value.email, form.value.password)
     }
 
-    const { data } = await supabase.auth.getSession()
-    if (!data.session) throw new Error('Confirme seu e-mail para continuar.')
 
     const profile = await linkClientAccount(props.empresaId)
     emit('authenticated', profile)
