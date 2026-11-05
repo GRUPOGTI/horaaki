@@ -58,6 +58,7 @@ function authErrorMessage(raw: string): string {
 }
 
 function linkErrorMessage(raw: string): string {
+  if (raw.includes('usuário do sistema')) return 'Esta conta é de usuário do painel e não pode agendar. Use uma conta de cliente.'
   if (raw.includes('Cadastro incompleto')) return 'Esta conta não é de cliente. Crie uma conta de cliente para agendar.'
   if (raw.includes('Telefone já vinculado')) return 'Este telefone já está vinculado a outra conta. Fale com a empresa.'
   if (raw.includes('Empresa não encontrada')) return 'Este estabelecimento não foi encontrado.'
