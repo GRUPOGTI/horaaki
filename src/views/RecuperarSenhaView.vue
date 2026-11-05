@@ -32,7 +32,7 @@ async function handleSubmit() {
 
 <template>
   <div class="auth-page">
-    <main class="auth-card">
+    <main id="main-content" class="auth-card" tabindex="-1">
       <a href="/" class="auth-logo">
         <span class="logo-mark">H</span>
         <span class="logo-name">Horaki</span>

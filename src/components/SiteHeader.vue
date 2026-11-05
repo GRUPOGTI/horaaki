@@ -37,7 +37,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 </script>
 
 <template>
-  <header class="header" :class="{ scrolled }">
+  <header class="header" :class="{ scrolled }" @keydown.esc="mobileMenuOpen = false">
     <div class="container header-inner">
       <a href="#home" class="logo" @click.prevent="scrollTo('#home')">
         <span class="logo-mark">{{ companyInitial }}</span>
@@ -67,7 +67,7 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
         @click="mobileMenuOpen = !mobileMenuOpen"
         :aria-expanded="mobileMenuOpen"
         :aria-controls="'mobile-menu'"
-        aria-label="Abrir menu de navegação"
+        :aria-label="mobileMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'"
       >
         <span :class="{ open: mobileMenuOpen }"></span>
       </button>

@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { watch, nextTick } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+
+const route = useRoute()
+
+watch(
+  () => route.path,
+  async () => {
+    await nextTick()
+    document.getElementById('main-content')?.focus()
+  },
+)
 </script>
 
 <template>

@@ -60,7 +60,7 @@ watch(
 
   <template v-else-if="displayCompany">
     <SiteHeader :company="displayCompany" />
-    <main>
+    <main id="main-content" tabindex="-1">
       <HeroSection :company="displayCompany" :config="siteConfig" />
       <ServicesSection :empresa-id="empresaId" :config="siteConfig" />
       <GallerySection :config="siteConfig" />

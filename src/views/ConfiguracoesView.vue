@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
+import AgendaQrCode from '../components/AgendaQrCode.vue'
 import { useCompany } from '../composables/useCompany'
 import { useBookings } from '../composables/useBookings'
 
@@ -75,6 +76,8 @@ function copyLink() {
     setTimeout(() => (copied.value = false), 2000)
   })
 }
+
+const publicUrl = computed(() => `${window.location.origin}/agenda/${company.value?.slug ?? ''}`)
 
 function openPublicPage() {
   if (form.slug) window.open(`/agenda/${form.slug}`, '_blank')
@@ -181,6 +184,8 @@ onMounted(async () => {
               <button type="button" class="btn-sm btn-sm-gold" v-if="form.slug" @click="openPublicPage">Abrir página</button>
             </div>
           </div>
+
+          <AgendaQrCode v-if="company?.slug" :url="publicUrl" file-name="qr-code-agenda.png" />
 
           <div class="form-group">
             <label>Descrição</label>

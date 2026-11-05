@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, RouterLink, RouterView } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import { useBookings } from '../composables/useBookings'
@@ -29,9 +29,16 @@ const navItems = [
   { name: 'configuracoes', label: 'Configurações', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' },
 ]
 
+function onEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape') sidebarOpen.value = false
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', onEscape)
   await loadCompanyByUser()
 })
+
+onUnmounted(() => window.removeEventListener('keydown', onEscape))
 
 watch(
   () => company.value?.id,
@@ -103,7 +110,7 @@ async function handleSignOut() {
 
     <div class="admin-main">
       <header class="admin-topbar">
-        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen" aria-label="Abrir menu lateral">
+        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen" :aria-expanded="sidebarOpen" :aria-label="sidebarOpen ? 'Fechar menu lateral' : 'Abrir menu lateral'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
         </button>
         <h2 class="topbar-title">{{ company?.name || 'Painel Administrativo' }}</h2>
@@ -117,7 +124,7 @@ async function handleSignOut() {
       </header>
 
       <div class="admin-content">
-        <main id="main-content">
+        <main id="main-content" tabindex="-1">
           <RouterView />
         </main>
       </div>

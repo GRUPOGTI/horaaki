@@ -86,7 +86,7 @@ const steps = [
       </div>
     </section>
 
-    <main id="main-content">
+    <main id="main-content" tabindex="-1">
 
     <section id="recursos" class="section">
       <div class="container">
